@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Tool_Type__c</fullName>
+    <label>Tool Type</label>
+    <type>Picklist</type>
+    <valueSet>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Salesforce</fullName>
+                <default>true</default>
+                <label>Salesforce</label>
+            </value>
+            <value>
+                <fullName>REST</fullName>
+                <default>false</default>
+                <label>REST</label>
+            </value>
+            <value>
+                <fullName>Knowledge</fullName>
+                <default>false</default>
+                <label>Knowledge</label>
+            </value>
+            <value>
+                <fullName>Function</fullName>
+                <default>false</default>
+                <label>Function</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>
