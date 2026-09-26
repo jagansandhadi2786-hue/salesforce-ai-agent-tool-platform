@@ -1,24 +1,31 @@
+
 public with sharing class AI_ToolExecutor {
 
     /*
      * Controlled Tool Executor
+     *
      * Execution Flow:
      * Request
-     * Tool Registry   |
+     *    |
+     * Tool Registry
+     *    |
      * Tool Validator
+     *    |
      * Schema Validator
+     *    |
+     * Authorization
+     *    |
      * Approval Check
+     *    |
      * Controlled Dispatcher
+     *    |
      * Salesforce Service
+     *    |
      * Tool Response
+     *
      * The LLM cannot dynamically invoke arbitrary Apex classes.
-     *
-     * The database configuration determines whether a tool
-     * exists and is active.
-     *
-     * The Apex dispatcher determines what code can actually execute.
+     * Only explicitly configured tools can be executed.
      */
-
 
     /**
      * Main Tool Execution Entry Point.
@@ -27,10 +34,6 @@ public with sharing class AI_ToolExecutor {
         AI_ToolRequest request
     ) {
 
-        /*
-         * Validate request before entering the main
-         * execution pipeline.
-         */
         if (request == null) {
 
             return AI_ToolResponse.failure(
@@ -39,7 +42,6 @@ public with sharing class AI_ToolExecutor {
             );
         }
 
-
         if (!request.isValid()) {
 
             return AI_ToolResponse.failure(
@@ -47,7 +49,6 @@ public with sharing class AI_ToolExecutor {
                 'Tool name is required.'
             );
         }
-
 
         try {
 
@@ -78,9 +79,16 @@ public with sharing class AI_ToolExecutor {
                 tool
             );
 
-
             /*
              * Step 4:
+             * Authorize the requested tool.
+             */
+            AI_ToolAuthorization.authorize(
+                tool
+            );
+
+            /*
+             * Step 5:
              * Check whether the tool requires approval.
              */
             if (tool.Requires_Approval__c) {
@@ -90,9 +98,8 @@ public with sharing class AI_ToolExecutor {
                 );
             }
 
-
             /*
-             * Step 5:
+             * Step 6:
              * Execute through the controlled dispatcher.
              */
             return dispatch(
@@ -100,14 +107,12 @@ public with sharing class AI_ToolExecutor {
                 tool
             );
 
-
         } catch (AI_ServiceException ex) {
 
             return AI_ToolResponse.failure(
                 request.toolName,
                 ex.getMessage()
             );
-
 
         } catch (Exception ex) {
 
@@ -132,9 +137,10 @@ public with sharing class AI_ToolExecutor {
 
         switch on request.toolName {
 
-
             /*
-             * search_customer
+             * ---------------------------------------------------------
+             * SEARCH CUSTOMER
+             * ---------------------------------------------------------
              */
             when 'search_customer' {
 
@@ -144,21 +150,27 @@ public with sharing class AI_ToolExecutor {
                         'customer_name'
                     );
 
-
                 List<Account> accounts =
                     CustomerService.searchCustomer(
                         customerName
                     );
 
+                List<CustomerResponse> responseData =
+                    AI_ToolResponseMapper.toCustomerResponses(
+                        accounts
+                    );
 
                 return AI_ToolResponse.success(
                     request.toolName,
-                    accounts
+                    responseData
                 );
             }
 
+
             /*
-             * get_customer_details
+             * ---------------------------------------------------------
+             * GET CUSTOMER DETAILS
+             * ---------------------------------------------------------
              */
             when 'get_customer_details' {
 
@@ -168,22 +180,27 @@ public with sharing class AI_ToolExecutor {
                         'customer_id'
                     );
 
-
-                Account account =
+                Account accountRecord =
                     CustomerService.getCustomerDetails(
                         customerId
                     );
 
+                CustomerResponse responseData =
+                    AI_ToolResponseMapper.toCustomerResponse(
+                        accountRecord
+                    );
 
                 return AI_ToolResponse.success(
                     request.toolName,
-                    account
+                    responseData
                 );
             }
 
 
             /*
-             * get_open_cases
+             * ---------------------------------------------------------
+             * GET OPEN CASES
+             * ---------------------------------------------------------
              */
             when 'get_open_cases' {
 
@@ -193,23 +210,305 @@ public with sharing class AI_ToolExecutor {
                         'account_id'
                     );
 
-
                 List<Case> cases =
                     CaseService.getOpenCases(
                         accountId
                     );
 
+                List<CaseResponse> responseData =
+                    AI_ToolResponseMapper.toCaseResponses(
+                        cases
+                    );
 
                 return AI_ToolResponse.success(
                     request.toolName,
-                    cases
+                    responseData
                 );
             }
 
 
             /*
-             * Tools that are registered but not yet
-             * connected to the controlled dispatcher.
+             * ---------------------------------------------------------
+             * GET CASE DETAILS
+             * ---------------------------------------------------------
+             */
+            when 'get_case_details' {
+
+                Id caseId =
+                    getIdArgument(
+                        request.arguments,
+                        'case_id'
+                    );
+
+                Case caseRecord =
+                    CaseService.getCaseDetails(
+                        caseId
+                    );
+
+                CaseResponse responseData =
+                    AI_ToolResponseMapper.toCaseResponse(
+                        caseRecord
+                    );
+
+                return AI_ToolResponse.success(
+                    request.toolName,
+                    responseData
+                );
+            }
+
+
+            /*
+             * ---------------------------------------------------------
+             * CREATE CASE
+             * ---------------------------------------------------------
+             */
+            when 'create_case' {
+
+                Id accountId =
+                    getIdArgument(
+                        request.arguments,
+                        'account_id'
+                    );
+
+                String subject =
+                    getStringArgument(
+                        request.arguments,
+                        'subject'
+                    );
+
+                String description =
+                    getStringArgument(
+                        request.arguments,
+                        'description'
+                    );
+
+                String priority =
+                    getOptionalStringArgument(
+                        request.arguments,
+                        'priority'
+                    );
+
+                Case newCase =
+                    CaseService.createCase(
+                        accountId,
+                        subject,
+                        description,
+                        priority
+                    );
+
+                CaseResponse responseData =
+                    AI_ToolResponseMapper.toCaseResponse(
+                        newCase
+                    );
+
+                return AI_ToolResponse.success(
+                    request.toolName,
+                    responseData
+                );
+            }
+
+
+            /*
+             * ---------------------------------------------------------
+             * UPDATE CASE
+             * ---------------------------------------------------------
+             */
+            when 'update_case' {
+
+                Id caseId =
+                    getIdArgument(
+                        request.arguments,
+                        'case_id'
+                    );
+
+                String status =
+                    getOptionalStringArgument(
+                        request.arguments,
+                        'status'
+                    );
+
+                String priority =
+                    getOptionalStringArgument(
+                        request.arguments,
+                        'priority'
+                    );
+
+                String subject =
+                    getOptionalStringArgument(
+                        request.arguments,
+                        'subject'
+                    );
+
+                Case updatedCase =
+                    CaseService.updateCase(
+                        caseId,
+                        status,
+                        priority,
+                        subject
+                    );
+
+                CaseResponse responseData =
+                    AI_ToolResponseMapper.toCaseResponse(
+                        updatedCase
+                    );
+
+                return AI_ToolResponse.success(
+                    request.toolName,
+                    responseData
+                );
+            }
+
+
+            /*
+             * ---------------------------------------------------------
+             * CREATE TASK
+             * ---------------------------------------------------------
+             */
+            when 'create_task' {
+
+                Id whatId =
+                    getIdArgument(
+                        request.arguments,
+                        'what_id'
+                    );
+
+                String subject =
+                    getStringArgument(
+                        request.arguments,
+                        'subject'
+                    );
+
+                Date dueDate =
+                    getOptionalDateArgument(
+                        request.arguments,
+                        'due_date'
+                    );
+
+                Task taskRecord =
+                    CaseService.createTask(
+                        whatId,
+                        subject,
+                        dueDate
+                    );
+
+                TaskResponse responseData =
+                    AI_ToolResponseMapper.toTaskResponse(
+                        taskRecord
+                    );
+
+                return AI_ToolResponse.success(
+                    request.toolName,
+                    responseData
+                );
+            }
+
+
+            /*
+             * ---------------------------------------------------------
+             * ESCALATE CASE
+             * ---------------------------------------------------------
+             */
+            when 'escalate_case' {
+
+                Id caseId =
+                    getIdArgument(
+                        request.arguments,
+                        'case_id'
+                    );
+
+                Case escalatedCase =
+                    CaseService.escalateCase(
+                        caseId
+                    );
+
+                CaseResponse responseData =
+                    AI_ToolResponseMapper.toCaseResponse(
+                        escalatedCase
+                    );
+
+                return AI_ToolResponse.success(
+                    request.toolName,
+                    responseData
+                );
+            }
+
+
+            /*
+             * ---------------------------------------------------------
+             * SEARCH KNOWLEDGE
+             * ---------------------------------------------------------
+             */
+            when 'search_knowledge' {
+
+                String searchTerm =
+                    getStringArgument(
+                        request.arguments,
+                        'search_term'
+                    );
+
+                List<KnowledgeService.KnowledgeResult> results =
+                    KnowledgeService.searchKnowledge(
+                        searchTerm
+                    );
+
+                List<KnowledgeResponse> responseData =
+                    new List<KnowledgeResponse>();
+
+                for (
+                    KnowledgeService.KnowledgeResult result :
+                    results
+                ) {
+
+                    responseData.add(
+                        new KnowledgeResponse(
+                            result.title,
+                            result.summary,
+                            result.url
+                        )
+                    );
+                }
+
+                return AI_ToolResponse.success(
+                    request.toolName,
+                    responseData
+                );
+            }
+
+
+            /*
+             * ---------------------------------------------------------
+             * GET ORDER STATUS
+             * ---------------------------------------------------------
+             */
+            when 'get_order_status' {
+
+                String orderNumber =
+                    getStringArgument(
+                        request.arguments,
+                        'order_number'
+                    );
+
+                OrderService.OrderResult result =
+                    OrderService.getOrderStatus(
+                        orderNumber
+                    );
+
+                OrderResponse responseData =
+                    AI_ToolResponseMapper.toOrderResponse(
+                        result
+                    );
+
+                return AI_ToolResponse.success(
+                    request.toolName,
+                    responseData
+                );
+            }
+
+
+            /*
+             * ---------------------------------------------------------
+             * UNKNOWN / UNCONFIGURED TOOL
+             * ---------------------------------------------------------
              */
             when else {
 
@@ -221,8 +520,15 @@ public with sharing class AI_ToolExecutor {
         }
     }
 
+
+    /*
+     * ================================================================
+     * ARGUMENT HELPERS
+     * ================================================================
+     */
+
     /**
-     * Retrieve a String argument.
+     * Required String argument.
      */
     private static String getStringArgument(
         Map<String, Object> arguments,
@@ -236,17 +542,15 @@ public with sharing class AI_ToolExecutor {
         ) {
 
             throw new AI_ServiceException(
-                'Required argument missing: ' +
+                'Required argument is missing: ' +
                 argumentName
             );
         }
-
 
         String value =
             String.valueOf(
                 arguments.get(argumentName)
             );
-
 
         if (String.isBlank(value)) {
 
@@ -256,13 +560,43 @@ public with sharing class AI_ToolExecutor {
             );
         }
 
+        return value.trim();
+    }
+
+
+    /**
+     * Optional String argument.
+     */
+    private static String getOptionalStringArgument(
+        Map<String, Object> arguments,
+        String argumentName
+    ) {
+
+        if (
+            arguments == null ||
+            !arguments.containsKey(argumentName) ||
+            arguments.get(argumentName) == null
+        ) {
+
+            return null;
+        }
+
+        String value =
+            String.valueOf(
+                arguments.get(argumentName)
+            );
+
+        if (String.isBlank(value)) {
+
+            return null;
+        }
 
         return value.trim();
     }
 
 
     /**
-     * Retrieve and validate a Salesforce Id argument.
+     * Required Salesforce Id argument.
      */
     private static Id getIdArgument(
         Map<String, Object> arguments,
@@ -275,7 +609,6 @@ public with sharing class AI_ToolExecutor {
                 argumentName
             );
 
-
         try {
 
             return (Id)value;
@@ -283,7 +616,43 @@ public with sharing class AI_ToolExecutor {
         } catch (Exception ex) {
 
             throw new AI_ServiceException(
-                'Invalid Salesforce ID for argument: ' +
+                'Invalid Salesforce Id for argument: ' +
+                argumentName
+            );
+        }
+    }
+
+
+    /**
+     * Optional Date argument.
+     *
+     * Expected format:
+     * YYYY-MM-DD
+     */
+    private static Date getOptionalDateArgument(
+        Map<String, Object> arguments,
+        String argumentName
+    ) {
+
+        String value =
+            getOptionalStringArgument(
+                arguments,
+                argumentName
+            );
+
+        if (String.isBlank(value)) {
+
+            return null;
+        }
+
+        try {
+
+            return Date.valueOf(value);
+
+        } catch (Exception ex) {
+
+            throw new AI_ServiceException(
+                'Invalid date for argument: ' +
                 argumentName
             );
         }
