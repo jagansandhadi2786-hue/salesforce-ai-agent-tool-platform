@@ -1,23 +1,36 @@
 public with sharing class AI_ToolExecutor {
 
-// Tool Executor - Request, Validate, Registry, Authorization, Approval, Execute, Response
-// However, there is an important Salesforce/Apex design issue here.
-// We should not use arbitrary reflection to let an AI specify: Handler_Class__c = SomeClass
-// and then dynamically invoke any method.
-// That would create an unnecessarily dangerous execution model.
-// Instead, we'll create a controlled dispatcher.
-// For example:
-// search_customer
-// AI_ToolExecutor
-// switch/tool mapping
-// CustomerService.searchCustomer()
-// The database configuration determines whether a tool exists and is active, while the Apex executor controls what code can actually execute.
+    /*
+     * Controlled Tool Executor
+     * Execution Flow:
+     * Request
+     * Tool Registry   |
+     * Tool Validator
+     * Schema Validator
+     * Approval Check
+     * Controlled Dispatcher
+     * Salesforce Service
+     * Tool Response
+     * The LLM cannot dynamically invoke arbitrary Apex classes.
+     *
+     * The database configuration determines whether a tool
+     * exists and is active.
+     *
+     * The Apex dispatcher determines what code can actually execute.
+     */
 
 
+    /**
+     * Main Tool Execution Entry Point.
+     */
     public static AI_ToolResponse execute(
         AI_ToolRequest request
     ) {
 
+        /*
+         * Validate request before entering the main
+         * execution pipeline.
+         */
         if (request == null) {
 
             return AI_ToolResponse.failure(
@@ -25,6 +38,7 @@ public with sharing class AI_ToolExecutor {
                 'Tool request is required.'
             );
         }
+
 
         if (!request.isValid()) {
 
@@ -34,25 +48,58 @@ public with sharing class AI_ToolExecutor {
             );
         }
 
+
         try {
 
+            /*
+             * Step 1:
+             * Retrieve the active tool from the registry.
+             */
             AI_Tool__c tool =
                 AI_ToolRegistry.getActiveTool(
                     request.toolName
                 );
 
+            /*
+             * Step 2:
+             * Validate the registered tool and request.
+             */
+            AI_ToolValidator.validate(
+                request,
+                tool
+            );
+
+            /*
+             * Step 3:
+             * Validate the tool argument schema.
+             */
+            AI_ToolSchemaValidator.validate(
+                request,
+                tool
+            );
+
+
+            /*
+             * Step 4:
+             * Check whether the tool requires approval.
+             */
             if (tool.Requires_Approval__c) {
 
-                return AI_ToolResponse
-                    .approvalRequired(
-                        request.toolName
-                    );
+                return AI_ToolResponse.approvalRequired(
+                    request.toolName
+                );
             }
 
+
+            /*
+             * Step 5:
+             * Execute through the controlled dispatcher.
+             */
             return dispatch(
                 request,
                 tool
             );
+
 
         } catch (AI_ServiceException ex) {
 
@@ -60,6 +107,7 @@ public with sharing class AI_ToolExecutor {
                 request.toolName,
                 ex.getMessage()
             );
+
 
         } catch (Exception ex) {
 
@@ -70,6 +118,13 @@ public with sharing class AI_ToolExecutor {
         }
     }
 
+
+    /**
+     * Controlled dispatcher.
+     *
+     * Only explicitly approved tools can reach
+     * Salesforce service methods.
+     */
     private static AI_ToolResponse dispatch(
         AI_ToolRequest request,
         AI_Tool__c tool
@@ -77,6 +132,10 @@ public with sharing class AI_ToolExecutor {
 
         switch on request.toolName {
 
+
+            /*
+             * search_customer
+             */
             when 'search_customer' {
 
                 String customerName =
@@ -85,10 +144,12 @@ public with sharing class AI_ToolExecutor {
                         'customer_name'
                     );
 
+
                 List<Account> accounts =
                     CustomerService.searchCustomer(
                         customerName
                     );
+
 
                 return AI_ToolResponse.success(
                     request.toolName,
@@ -96,6 +157,9 @@ public with sharing class AI_ToolExecutor {
                 );
             }
 
+            /*
+             * get_customer_details
+             */
             when 'get_customer_details' {
 
                 Id customerId =
@@ -104,10 +168,12 @@ public with sharing class AI_ToolExecutor {
                         'customer_id'
                     );
 
+
                 Account account =
                     CustomerService.getCustomerDetails(
                         customerId
                     );
+
 
                 return AI_ToolResponse.success(
                     request.toolName,
@@ -115,6 +181,10 @@ public with sharing class AI_ToolExecutor {
                 );
             }
 
+
+            /*
+             * get_open_cases
+             */
             when 'get_open_cases' {
 
                 Id accountId =
@@ -123,10 +193,12 @@ public with sharing class AI_ToolExecutor {
                         'account_id'
                     );
 
+
                 List<Case> cases =
                     CaseService.getOpenCases(
                         accountId
                     );
+
 
                 return AI_ToolResponse.success(
                     request.toolName,
@@ -134,6 +206,11 @@ public with sharing class AI_ToolExecutor {
                 );
             }
 
+
+            /*
+             * Tools that are registered but not yet
+             * connected to the controlled dispatcher.
+             */
             when else {
 
                 return AI_ToolResponse.failure(
@@ -144,6 +221,9 @@ public with sharing class AI_ToolExecutor {
         }
     }
 
+    /**
+     * Retrieve a String argument.
+     */
     private static String getStringArgument(
         Map<String, Object> arguments,
         String argumentName
@@ -161,10 +241,12 @@ public with sharing class AI_ToolExecutor {
             );
         }
 
+
         String value =
             String.valueOf(
                 arguments.get(argumentName)
             );
+
 
         if (String.isBlank(value)) {
 
@@ -174,9 +256,14 @@ public with sharing class AI_ToolExecutor {
             );
         }
 
+
         return value.trim();
     }
 
+
+    /**
+     * Retrieve and validate a Salesforce Id argument.
+     */
     private static Id getIdArgument(
         Map<String, Object> arguments,
         String argumentName
@@ -187,6 +274,7 @@ public with sharing class AI_ToolExecutor {
                 arguments,
                 argumentName
             );
+
 
         try {
 
