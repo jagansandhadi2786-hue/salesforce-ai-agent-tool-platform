@@ -358,20 +358,20 @@ public with sharing class AI_ToolSchemaValidator {
             // =====================================================
             // get_order_status
             // =====================================================
-            when 'get_order_status' {
+         when 'get_order_status' {
 
-                validateRequired(
-                    arguments,
-                    'order_id'
-                );
+              validateRequired(
+                   arguments,
+                   'order_number'
+              );
 
-                validateAllowedArguments(
-                    arguments,
-                    new Set<String>{
-                        'order_id'
-                    }
-                );
-            }
+              validateAllowedArguments(
+                   arguments,
+                   new Set<String>{
+                   'order_number'
+        }
+    );
+}   
 
 
             // =====================================================
