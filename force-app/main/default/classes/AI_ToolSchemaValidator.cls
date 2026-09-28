@@ -97,6 +97,9 @@ public with sharing class AI_ToolSchemaValidator {
 
         switch on toolName {
 
+            // =====================================================
+            // search_customer
+            // =====================================================
             when 'search_customer' {
 
                 validateRequired(
@@ -113,9 +116,17 @@ public with sharing class AI_ToolSchemaValidator {
             }
 
 
+            // =====================================================
+            // get_customer_details
+            // =====================================================
             when 'get_customer_details' {
 
                 validateRequired(
+                    arguments,
+                    'customer_id'
+                );
+
+                validateSalesforceId(
                     arguments,
                     'customer_id'
                 );
@@ -129,9 +140,17 @@ public with sharing class AI_ToolSchemaValidator {
             }
 
 
+            // =====================================================
+            // get_open_cases
+            // =====================================================
             when 'get_open_cases' {
 
                 validateRequired(
+                    arguments,
+                    'account_id'
+                );
+
+                validateSalesforceId(
                     arguments,
                     'account_id'
                 );
@@ -145,9 +164,17 @@ public with sharing class AI_ToolSchemaValidator {
             }
 
 
+            // =====================================================
+            // get_case_details
+            // =====================================================
             when 'get_case_details' {
 
                 validateRequired(
+                    arguments,
+                    'case_id'
+                );
+
+                validateSalesforceId(
                     arguments,
                     'case_id'
                 );
@@ -161,6 +188,9 @@ public with sharing class AI_ToolSchemaValidator {
             }
 
 
+            // =====================================================
+            // create_case
+            // =====================================================
             when 'create_case' {
 
                 validateRequired(
@@ -176,6 +206,11 @@ public with sharing class AI_ToolSchemaValidator {
                 validateRequired(
                     arguments,
                     'description'
+                );
+
+                validateSalesforceId(
+                    arguments,
+                    'account_id'
                 );
 
                 validateAllowedArguments(
@@ -198,9 +233,17 @@ public with sharing class AI_ToolSchemaValidator {
             }
 
 
+            // =====================================================
+            // update_case
+            // =====================================================
             when 'update_case' {
 
                 validateRequired(
+                    arguments,
+                    'case_id'
+                );
+
+                validateSalesforceId(
                     arguments,
                     'case_id'
                 );
@@ -229,6 +272,9 @@ public with sharing class AI_ToolSchemaValidator {
             }
 
 
+            // =====================================================
+            // create_task
+            // =====================================================
             when 'create_task' {
 
                 validateRequired(
@@ -241,6 +287,11 @@ public with sharing class AI_ToolSchemaValidator {
                     'subject'
                 );
 
+                validateSalesforceId(
+                    arguments,
+                    'what_id'
+                );
+
                 validateAllowedArguments(
                     arguments,
                     new Set<String>{
@@ -249,12 +300,29 @@ public with sharing class AI_ToolSchemaValidator {
                         'due_date'
                     }
                 );
+
+                /*
+                 * due_date is optional,
+                 * but if supplied it must be a valid date.
+                 */
+                validateDate(
+                    arguments,
+                    'due_date'
+                );
             }
 
 
+            // =====================================================
+            // escalate_case
+            // =====================================================
             when 'escalate_case' {
 
                 validateRequired(
+                    arguments,
+                    'case_id'
+                );
+
+                validateSalesforceId(
                     arguments,
                     'case_id'
                 );
@@ -268,6 +336,9 @@ public with sharing class AI_ToolSchemaValidator {
             }
 
 
+            // =====================================================
+            // search_knowledge
+            // =====================================================
             when 'search_knowledge' {
 
                 validateRequired(
@@ -284,6 +355,9 @@ public with sharing class AI_ToolSchemaValidator {
             }
 
 
+            // =====================================================
+            // get_order_status
+            // =====================================================
             when 'get_order_status' {
 
                 validateRequired(
@@ -300,6 +374,9 @@ public with sharing class AI_ToolSchemaValidator {
             }
 
 
+            // =====================================================
+            // Unknown tool schema
+            // =====================================================
             when else {
 
                 throw new AI_ServiceException(
@@ -339,6 +416,89 @@ public with sharing class AI_ToolSchemaValidator {
 
             throw new AI_ServiceException(
                 'Required argument is blank: ' +
+                argumentName
+            );
+        }
+    }
+
+
+    /*
+     * Salesforce ID format validation.
+     *
+     * Supports Salesforce 15-character
+     * and 18-character ID formats.
+     */
+    private static void validateSalesforceId(
+        Map<String, Object> arguments,
+        String argumentName
+    ) {
+
+        Object value =
+            arguments.get(argumentName);
+
+        if (value == null) {
+
+            throw new AI_ServiceException(
+                'Invalid ID argument: ' +
+                argumentName
+            );
+        }
+
+        String idValue =
+            String.valueOf(value).trim();
+
+        if (
+            !Pattern.matches(
+                '^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$',
+                idValue
+            )
+        ) {
+
+            throw new AI_ServiceException(
+                'Invalid ID argument: ' +
+                argumentName
+            );
+        }
+    }
+
+
+    /*
+     * Date validation.
+     *
+     * Expected format:
+     * yyyy-MM-dd
+     */
+    private static void validateDate(
+        Map<String, Object> arguments,
+        String argumentName
+    ) {
+
+        if (!arguments.containsKey(argumentName)) {
+            return;
+        }
+
+        Object value =
+            arguments.get(argumentName);
+
+        if (value == null) {
+
+            throw new AI_ServiceException(
+                'Invalid date for argument: ' +
+                argumentName
+            );
+        }
+
+        String dateValue =
+            String.valueOf(value).trim();
+
+        try {
+
+            Date.valueOf(dateValue);
+
+        } catch (Exception ex) {
+
+            throw new AI_ServiceException(
+                'Invalid date for argument: ' +
                 argumentName
             );
         }
