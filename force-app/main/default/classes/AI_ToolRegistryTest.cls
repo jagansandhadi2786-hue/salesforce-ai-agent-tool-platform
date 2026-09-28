@@ -37,9 +37,20 @@ private class AI_ToolRegistryTest {
 
         Test.stopTest();
 
+        System.assertNotEquals(
+            null,
+            tool,
+            'Expected registered tool to be returned.'
+        );
+
         System.assertEquals(
             'test_search_customer',
             tool.Tool_API_Name__c
+        );
+
+        System.assertEquals(
+            true,
+            tool.Active__c
         );
     }
 
@@ -55,6 +66,17 @@ private class AI_ToolRegistryTest {
 
         Test.stopTest();
 
+        System.assertNotEquals(
+            null,
+            tool,
+            'Expected active tool to be returned.'
+        );
+
+        System.assertEquals(
+            'test_search_customer',
+            tool.Tool_API_Name__c
+        );
+
         System.assertEquals(
             true,
             tool.Active__c
@@ -64,48 +86,109 @@ private class AI_ToolRegistryTest {
     @IsTest
     static void testInactiveTool() {
 
+        Boolean exceptionThrown = false;
+
         try {
 
             AI_ToolRegistry.getActiveTool(
                 'inactive_tool'
             );
 
-            System.assert(
-                false,
-                'Expected exception'
-            );
-
         } catch (AI_ServiceException ex) {
 
-            System.assert(
-                ex.getMessage().contains(
-                    'inactive'
-                )
+            exceptionThrown = true;
+
+            System.assertEquals(
+                'Tool is not registered or not active.',
+                ex.getMessage()
             );
         }
+
+        System.assertEquals(
+            true,
+            exceptionThrown,
+            'Expected AI_ServiceException for inactive tool.'
+        );
     }
 
     @IsTest
     static void testMissingTool() {
 
-        try {
+        Test.startTest();
 
+        AI_Tool__c tool =
             AI_ToolRegistry.getTool(
                 'does_not_exist'
             );
 
-            System.assert(
-                false,
-                'Expected exception'
+        Test.stopTest();
+
+        System.assertEquals(
+            null,
+            tool,
+            'getTool should return null when the tool is not registered.'
+        );
+    }
+
+    @IsTest
+    static void testMissingActiveTool() {
+
+        Boolean exceptionThrown = false;
+
+        try {
+
+            AI_ToolRegistry.getActiveTool(
+                'does_not_exist'
             );
 
         } catch (AI_ServiceException ex) {
 
-            System.assert(
-                ex.getMessage().contains(
-                    'Tool not found'
-                )
+            exceptionThrown = true;
+
+            System.assertEquals(
+                'Tool is not registered or not active.',
+                ex.getMessage()
             );
         }
+
+        System.assertEquals(
+            true,
+            exceptionThrown,
+            'Expected AI_ServiceException for missing active tool.'
+        );
     }
+
+    @IsTest
+    static void testBlankToolName() {
+
+        Test.startTest();
+
+        AI_Tool__c tool =
+            AI_ToolRegistry.getTool('');
+
+        Test.stopTest();
+
+        System.assertEquals(
+            null,
+            tool,
+            'Blank tool name should return null.'
+        );
+    }
+
+@IsTest
+static void testBlankActiveToolName() {
+
+    Test.startTest();
+
+    AI_Tool__c tool =
+        AI_ToolRegistry.getActiveTool('');
+
+    Test.stopTest();
+
+    System.assertEquals(
+        null,
+        tool,
+        'Blank tool name should return null.'
+    );
+}
 }

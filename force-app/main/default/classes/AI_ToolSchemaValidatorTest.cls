@@ -322,7 +322,7 @@ private class AI_ToolSchemaValidatorTest {
         request.toolName = 'get_order_status';
 
         request.arguments = new Map<String, Object>{
-            'order_id' => 'ORD-10001'
+            'order_number' => 'ORD-10001'
         };
 
         Test.startTest();

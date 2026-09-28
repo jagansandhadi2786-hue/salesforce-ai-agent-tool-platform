@@ -590,7 +590,7 @@ for (String toolName : toolNames) {
     }
     else if (toolName == 'get_order_status') {
         arguments.put(
-            'order_id',
+            'order_number',
             'ORD-1001'
         );
     }
