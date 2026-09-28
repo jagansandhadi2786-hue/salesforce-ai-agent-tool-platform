@@ -112,6 +112,7 @@ public with sharing class AI_ToolSchemaValidator {
                 );
             }
 
+
             when 'get_customer_details' {
 
                 validateRequired(
@@ -126,6 +127,7 @@ public with sharing class AI_ToolSchemaValidator {
                     }
                 );
             }
+
 
             when 'get_open_cases' {
 
@@ -142,6 +144,7 @@ public with sharing class AI_ToolSchemaValidator {
                 );
             }
 
+
             when 'get_case_details' {
 
                 validateRequired(
@@ -156,6 +159,7 @@ public with sharing class AI_ToolSchemaValidator {
                     }
                 );
             }
+
 
             when 'create_case' {
 
@@ -183,7 +187,16 @@ public with sharing class AI_ToolSchemaValidator {
                         'priority'
                     }
                 );
+
+                /*
+                 * priority is optional,
+                 * but if supplied it must be valid.
+                 */
+                validatePriority(
+                    arguments
+                );
             }
+
 
             when 'update_case' {
 
@@ -205,7 +218,16 @@ public with sharing class AI_ToolSchemaValidator {
                 validateAtLeastOneUpdateField(
                     arguments
                 );
+
+                /*
+                 * If priority is supplied,
+                 * validate its allowed value.
+                 */
+                validatePriority(
+                    arguments
+                );
             }
+
 
             when 'create_task' {
 
@@ -229,6 +251,7 @@ public with sharing class AI_ToolSchemaValidator {
                 );
             }
 
+
             when 'escalate_case' {
 
                 validateRequired(
@@ -243,6 +266,7 @@ public with sharing class AI_ToolSchemaValidator {
                     }
                 );
             }
+
 
             when 'search_knowledge' {
 
@@ -259,6 +283,7 @@ public with sharing class AI_ToolSchemaValidator {
                 );
             }
 
+
             when 'get_order_status' {
 
                 validateRequired(
@@ -273,6 +298,7 @@ public with sharing class AI_ToolSchemaValidator {
                     }
                 );
             }
+
 
             when else {
 
@@ -338,6 +364,54 @@ public with sharing class AI_ToolSchemaValidator {
                     '" supplied to tool.'
                 );
             }
+        }
+    }
+
+
+    /*
+     * Validates the allowed Case priority values.
+     *
+     * Salesforce Case Priority values supported
+     * by this application contract are:
+     *
+     * Low
+     * Medium
+     * High
+     */
+    private static void validatePriority(
+        Map<String, Object> arguments
+    ) {
+
+        if (!arguments.containsKey('priority')) {
+            return;
+        }
+
+        Object priorityValue =
+            arguments.get('priority');
+
+        if (priorityValue == null) {
+
+            throw new AI_ServiceException(
+                'Priority cannot be null.'
+            );
+        }
+
+        String priority =
+            String.valueOf(priorityValue);
+
+        Set<String> allowedPriorities =
+            new Set<String>{
+                'Low',
+                'Medium',
+                'High'
+            };
+
+        if (!allowedPriorities.contains(priority)) {
+
+            throw new AI_ServiceException(
+                'Invalid value for priority: ' +
+                priority
+            );
         }
     }
 

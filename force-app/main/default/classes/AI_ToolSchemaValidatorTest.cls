@@ -90,48 +90,6 @@ private class AI_ToolSchemaValidatorTest {
 
 
     @IsTest
-    static void testGetCustomerDetailsValid() {
-
-        AI_ToolRequest request = new AI_ToolRequest();
-
-        request.toolName = 'get_customer_details';
-
-        request.arguments = new Map<String, Object>{
-            'customer_id' => '001000000000001AAA'
-        };
-
-        Test.startTest();
-
-        AI_ToolSchemaValidator.validate(request);
-
-        Test.stopTest();
-
-        System.assert(true);
-    }
-
-
-    @IsTest
-    static void testGetOpenCasesValid() {
-
-        AI_ToolRequest request = new AI_ToolRequest();
-
-        request.toolName = 'get_open_cases';
-
-        request.arguments = new Map<String, Object>{
-            'account_id' => '001000000000001AAA'
-        };
-
-        Test.startTest();
-
-        AI_ToolSchemaValidator.validate(request);
-
-        Test.stopTest();
-
-        System.assert(true);
-    }
-
-
-    @IsTest
     static void testCreateCaseValid() {
 
         AI_ToolRequest request = new AI_ToolRequest();
@@ -152,6 +110,43 @@ private class AI_ToolSchemaValidatorTest {
         Test.stopTest();
 
         System.assert(true);
+    }
+
+
+    @IsTest
+    static void testInvalidPriorityRejected() {
+
+        AI_ToolRequest request = new AI_ToolRequest();
+
+        request.toolName = 'create_case';
+
+        request.arguments = new Map<String, Object>{
+            'account_id' => '001000000000001AAA',
+            'subject' => 'Payment failure',
+            'description' => 'Payment failed',
+            'priority' => 'Urgent'
+        };
+
+        Test.startTest();
+
+        try {
+
+            AI_ToolSchemaValidator.validate(request);
+
+            System.assert(
+                false,
+                'Expected AI_ServiceException for invalid priority.'
+            );
+
+        } catch (AI_ServiceException ex) {
+
+            System.assert(
+                ex.getMessage().contains('Invalid value for priority'),
+                'Unexpected message: ' + ex.getMessage()
+            );
+        }
+
+        Test.stopTest();
     }
 
 
@@ -210,6 +205,48 @@ private class AI_ToolSchemaValidatorTest {
         }
 
         Test.stopTest();
+    }
+
+
+    @IsTest
+    static void testGetCustomerDetailsValid() {
+
+        AI_ToolRequest request = new AI_ToolRequest();
+
+        request.toolName = 'get_customer_details';
+
+        request.arguments = new Map<String, Object>{
+            'customer_id' => '001000000000001AAA'
+        };
+
+        Test.startTest();
+
+        AI_ToolSchemaValidator.validate(request);
+
+        Test.stopTest();
+
+        System.assert(true);
+    }
+
+
+    @IsTest
+    static void testGetOpenCasesValid() {
+
+        AI_ToolRequest request = new AI_ToolRequest();
+
+        request.toolName = 'get_open_cases';
+
+        request.arguments = new Map<String, Object>{
+            'account_id' => '001000000000001AAA'
+        };
+
+        Test.startTest();
+
+        AI_ToolSchemaValidator.validate(request);
+
+        Test.stopTest();
+
+        System.assert(true);
     }
 
 
@@ -387,22 +424,33 @@ private class AI_ToolSchemaValidatorTest {
         Test.stopTest();
     }
 
-
     @IsTest
-    static void testNullArguments() {
+static void testNullArgumentsRejected() {
 
-        AI_ToolRequest request = new AI_ToolRequest();
+    AI_ToolRequest request = new AI_ToolRequest();
 
-        request.toolName = 'search_customer';
+    request.toolName = 'search_customer';
+    request.arguments = null;
 
-        request.arguments = null;
+    Test.startTest();
 
-        Test.startTest();
+    try {
 
         AI_ToolSchemaValidator.validate(request);
 
-        Test.stopTest();
+        System.assert(
+            false,
+            'Expected AI_ServiceException.'
+        );
 
-        System.assert(true);
+    } catch (AI_ServiceException ex) {
+
+        System.assert(
+            ex.getMessage().contains('customer_name'),
+            'Unexpected message: ' + ex.getMessage()
+        );
     }
+
+    Test.stopTest();
+}
 }
