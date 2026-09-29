@@ -944,7 +944,7 @@ public with sharing class AI_AgentArgumentBuilder {
      * ORDER NUMBER
      * ----------------------------------------------------
      */
-private static String extractOrderNumber(
+    private static String extractOrderNumber(
     String message
 ) {
 
@@ -962,53 +962,15 @@ private static String extractOrderNumber(
                 ''
             );
 
-        String upperToken =
-            cleanedToken.toUpperCase();
-
-        /*
-         * Supported formats:
-         *
-         * ORD-1001
-         * ORD_1001
-         * ORD1001
-         *
-         * Do NOT treat ordinary words such as
-         * "order" as an order number.
-         */
-
-        Boolean validOrderNumber = false;
-
         if (
-            upperToken.startsWith('ORD-') ||
-            upperToken.startsWith('ORD_')
+            cleanedToken.toUpperCase().startsWith('ORD-') ||
+            cleanedToken.toUpperCase().startsWith('ORD_') ||
+            cleanedToken.toUpperCase().startsWith('ORD')
         ) {
 
-            validOrderNumber =
-                upperToken.length() > 4;
-
-        } else if (
-            upperToken.startsWith('ORD') &&
-            upperToken.length() > 3
-        ) {
-
-            /*
-             * ORD followed directly by a number.
-             *
-             * Example:
-             * ORD1001  -> valid
-             * ORDER    -> invalid
-             */
-
-            String fourthCharacter =
-                upperToken.substring(3, 4);
-
-            validOrderNumber =
-                fourthCharacter >= '0' &&
-                fourthCharacter <= '9';
-        }
-
-        if (validOrderNumber) {
-            return cleanedToken;
+            if (cleanedToken.length() > 3) {
+                return cleanedToken;
+            }
         }
     }
 
