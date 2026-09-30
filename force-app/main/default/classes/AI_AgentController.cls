@@ -6,24 +6,37 @@ public with sharing class AI_AgentController {
         AI_AgentResponse response;
 
         try {
+
             /*
+             * ------------------------------------------------
+             * STEP 1
              * Validate the message received from the UI.
+             * ------------------------------------------------
              */
             if (String.isBlank(userMessage)) {
 
                 response = new AI_AgentResponse();
+
                 response.success = false;
-                response.message = 'Please enter a message.';
-                response.errorMessage = 'User message is required.';
+
+                response.message =
+                    'User message is required.';
+
+                response.errorMessage =
+                    'User message is required.';
 
                 return response;
             }
 
+
             /*
+             * ------------------------------------------------
+             * STEP 2
              * Preserve the actual natural-language message.
              *
              * IMPORTANT:
              * Do NOT replace this with GENERAL_CHAT.
+             * ------------------------------------------------
              */
             userMessage = userMessage.trim();
 
@@ -32,12 +45,18 @@ public with sharing class AI_AgentController {
                 'AI AGENT INPUT = [' + userMessage + ']'
             );
 
-            /*
-             * Build the agent request.
-             */
-            AI_AgentRequest request = new AI_AgentRequest();
 
-            request.userMessage = userMessage;
+            /*
+             * ------------------------------------------------
+             * STEP 3
+             * Build the agent request.
+             * ------------------------------------------------
+             */
+            AI_AgentRequest request =
+                new AI_AgentRequest();
+
+            request.userMessage =
+                userMessage;
 
             System.debug(
                 LoggingLevel.ERROR,
@@ -46,24 +65,39 @@ public with sharing class AI_AgentController {
                 ']'
             );
 
+
             /*
-             * IMPORTANT:
+             * ------------------------------------------------
+             * STEP 4
+             * Send request to the Agent Orchestrator.
+             *
              * AI_AgentOrchestrator.process() is STATIC
-             * in your existing implementation.
+             * in the existing implementation.
+             * ------------------------------------------------
              */
-            response = AI_AgentOrchestrator.process(request);
+            response =
+                AI_AgentOrchestrator.process(request);
 
             return response;
 
+
         } catch (AI_ServiceException ex) {
 
-            response = new AI_AgentResponse();
+            /*
+             * ------------------------------------------------
+             * SERVICE ERROR
+             * ------------------------------------------------
+             */
+            response =
+                new AI_AgentResponse();
 
             response.success = false;
+
             response.message =
                 'I could not complete the request.';
 
-            response.errorMessage = ex.getMessage();
+            response.errorMessage =
+                ex.getMessage();
 
             System.debug(
                 LoggingLevel.ERROR,
@@ -73,15 +107,24 @@ public with sharing class AI_AgentController {
 
             return response;
 
+
         } catch (Exception ex) {
 
-            response = new AI_AgentResponse();
+            /*
+             * ------------------------------------------------
+             * UNEXPECTED ERROR
+             * ------------------------------------------------
+             */
+            response =
+                new AI_AgentResponse();
 
             response.success = false;
+
             response.message =
                 'I could not complete the request.';
 
-            response.errorMessage = ex.getMessage();
+            response.errorMessage =
+                ex.getMessage();
 
             System.debug(
                 LoggingLevel.ERROR,
