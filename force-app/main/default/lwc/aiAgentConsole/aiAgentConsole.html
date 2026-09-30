@@ -1,3 +1,74 @@
 <template>
-    
+
+    <lightning-card
+        title="AI Customer Service Agent"
+        icon-name="utility:einstein">
+
+        <div class="slds-p-around_medium">
+
+            <lightning-textarea
+                label="Ask the Agent"
+                value={userMessage}
+                onchange={handleMessageChange}
+                placeholder="Example: Find customer Acme">
+            </lightning-textarea>
+
+            <div class="slds-m-top_medium">
+
+                <lightning-button
+                    variant="brand"
+                    label="Send"
+                    onclick={handleSend}
+                    disabled={isLoading}>
+                </lightning-button>
+
+            </div>
+
+
+            <template if:true={isLoading}>
+
+                <div class="slds-m-top_medium">
+
+                    <lightning-spinner
+                        alternative-text="Processing">
+                    </lightning-spinner>
+
+                </div>
+
+            </template>
+
+
+            <template if:true={responseMessage}>
+
+                <div class="slds-box slds-theme_default slds-m-top_medium">
+
+                    <strong>Agent Response</strong>
+
+                    <p class="slds-m-top_small">
+                        {responseMessage}
+                    </p>
+
+                </div>
+
+            </template>
+
+
+            <template if:true={errorMessage}>
+
+                <div class="slds-box slds-theme_error slds-m-top_medium">
+
+                    <strong>Error</strong>
+
+                    <p class="slds-m-top_small">
+                        {errorMessage}
+                    </p>
+
+                </div>
+
+            </template>
+
+        </div>
+
+    </lightning-card>
+
 </template>
