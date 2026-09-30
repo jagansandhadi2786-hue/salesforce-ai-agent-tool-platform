@@ -1,19 +1,95 @@
 public with sharing class AI_AgentController {
 
     @AuraEnabled
-    public static AI_AgentResponse processMessage(
-        String userMessage
-    ) {
+    public static AI_AgentResponse processMessage(String userMessage) {
 
-        AI_AgentRequest request =
-            new AI_AgentRequest();
+        AI_AgentResponse response;
 
-        request.userMessage =
-            userMessage;
+        try {
+            /*
+             * Validate the message received from the UI.
+             */
+            if (String.isBlank(userMessage)) {
 
-        return AI_AgentOrchestrator.process(
-            request
-        );
+                response = new AI_AgentResponse();
+                response.success = false;
+                response.message = 'Please enter a message.';
+                response.errorMessage = 'User message is blank.';
+
+                return response;
+            }
+
+            /*
+             * Preserve the actual natural-language message.
+             *
+             * IMPORTANT:
+             * Do NOT replace this with GENERAL_CHAT.
+             */
+            userMessage = userMessage.trim();
+
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT INPUT = [' + userMessage + ']'
+            );
+
+            /*
+             * Build the agent request.
+             */
+            AI_AgentRequest request = new AI_AgentRequest();
+
+            request.userMessage = userMessage;
+
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT REQUEST.userMessage = [' +
+                request.userMessage +
+                ']'
+            );
+
+            /*
+             * IMPORTANT:
+             * AI_AgentOrchestrator.process() is STATIC
+             * in your existing implementation.
+             */
+            response = AI_AgentOrchestrator.process(request);
+
+            return response;
+
+        } catch (AI_ServiceException ex) {
+
+            response = new AI_AgentResponse();
+
+            response.success = false;
+            response.message =
+                'I could not complete the request.';
+
+            response.errorMessage = ex.getMessage();
+
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT SERVICE ERROR = ' +
+                ex.getMessage()
+            );
+
+            return response;
+
+        } catch (Exception ex) {
+
+            response = new AI_AgentResponse();
+
+            response.success = false;
+            response.message =
+                'I could not complete the request.';
+
+            response.errorMessage = ex.getMessage();
+
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT UNEXPECTED ERROR = ' +
+                ex.getMessage()
+            );
+
+            return response;
+        }
     }
 }
-
