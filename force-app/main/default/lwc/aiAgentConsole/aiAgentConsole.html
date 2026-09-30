@@ -4,68 +4,230 @@
         title="AI Customer Service Agent"
         icon-name="utility:einstein">
 
-        <div class="slds-p-around_medium">
+        <div class="agent-container">
 
-            <lightning-textarea
-                label="Ask the Agent"
-                value={userMessage}
-                onchange={handleMessageChange}
-                placeholder="Example: Find customer Acme">
-            </lightning-textarea>
+            <!-- Header -->
+            <div class="agent-header">
 
-            <div class="slds-m-top_medium">
+                <div>
+                    <div class="agent-title">
+                        Customer Service Assistant
+                    </div>
+
+                    <div class="agent-subtitle">
+                        Salesforce AI Agent
+                    </div>
+                </div>
 
                 <lightning-button
-                    variant="brand"
-                    label="Send"
-                    onclick={handleSend}
-                    disabled={isLoading}>
+                    label="Clear"
+                    title="Clear conversation"
+                    icon-name="utility:refresh"
+                    onclick={clearConversation}>
                 </lightning-button>
 
             </div>
 
 
-            <template if:true={isLoading}>
+            <!-- Chat -->
+            <div
+                class="chat-container"
+                role="log"
+                aria-live="polite">
 
-                <div class="slds-m-top_medium">
+                <template
+                    for:each={messages}
+                    for:item="message">
 
-                    <lightning-spinner
-                        alternative-text="Processing">
-                    </lightning-spinner>
+                    <!-- USER MESSAGE -->
 
-                </div>
+                    <template if:true={message.isUser}>
 
-            </template>
+                        <div
+                            key={message.id}
+                            class="message-row user-row">
+
+                            <div class="message-bubble user-bubble">
+
+                                <div class="message-label">
+                                    You
+                                </div>
+
+                                <div class="message-text">
+                                    {message.text}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </template>
 
 
-            <template if:true={responseMessage}>
+                    <!-- AGENT MESSAGE -->
 
-                <div class="slds-box slds-theme_default slds-m-top_medium">
+                    <template if:true={message.isAgent}>
 
-                    <strong>Agent Response</strong>
+                        <div
+                            key={message.id}
+                            class="message-row agent-row">
 
-                    <p class="slds-m-top_small">
-                        {responseMessage}
-                    </p>
+                            <div class="message-bubble agent-bubble">
 
-                </div>
+                                <div class="message-label">
+                                    AI Agent
+                                </div>
 
-            </template>
+                                <div class="message-text">
+                                    {message.text}
+                                </div>
 
+
+                                <!-- Agent Metadata -->
+
+                                <template
+                                    if:true={message.hasMetadata}>
+
+                                    <div class="metadata">
+
+                                        <template
+                                            if:true={message.intent}>
+
+                                            <span class="metadata-item">
+                                                Intent:
+                                                {message.intent}
+                                            </span>
+
+                                        </template>
+
+
+                                        <template
+                                            if:true={message.selectedTool}>
+
+                                            <span class="metadata-item">
+                                                Tool:
+                                                {message.selectedTool}
+                                            </span>
+
+                                        </template>
+
+                                    </div>
+
+                                </template>
+
+
+                                <!-- Approval -->
+
+                                <template
+                                    if:true={message.approvalRequired}>
+
+                                    <div class="approval-box">
+
+                                        <lightning-icon
+                                            icon-name="utility:lock"
+                                            size="x-small"
+                                            alternative-text="Approval required">
+                                        </lightning-icon>
+
+                                        <span>
+                                            Approval required before
+                                            execution.
+                                        </span>
+
+                                    </div>
+
+                                </template>
+
+                            </div>
+
+                        </div>
+
+                    </template>
+
+                </template>
+
+
+                <!-- Loading -->
+
+                <template if:true={isLoading}>
+
+                    <div class="message-row agent-row">
+
+                        <div class="message-bubble agent-bubble">
+
+                            <div class="message-label">
+                                AI Agent
+                            </div>
+
+                            <div class="typing-indicator">
+
+                                <span></span>
+                                <span></span>
+                                <span></span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </template>
+
+            </div>
+
+
+            <!-- Error -->
 
             <template if:true={errorMessage}>
 
-                <div class="slds-box slds-theme_error slds-m-top_medium">
+                <div class="error-container">
 
-                    <strong>Error</strong>
+                    <lightning-icon
+                        icon-name="utility:error"
+                        size="x-small"
+                        alternative-text="Error">
+                    </lightning-icon>
 
-                    <p class="slds-m-top_small">
+                    <span>
                         {errorMessage}
-                    </p>
+                    </span>
 
                 </div>
 
             </template>
+
+
+            <!-- Input -->
+
+            <div class="input-container">
+
+                <lightning-textarea
+                    class="message-input"
+                    variant="label-hidden"
+                    value={userMessage}
+                    onchange={handleMessageChange}
+                    onkeydown={handleKeyDown}
+                    placeholder="Ask the Agent...">
+                </lightning-textarea>
+
+
+                <lightning-button
+                    variant="brand"
+                    label="Send"
+                    icon-name="utility:send"
+                    icon-position="right"
+                    onclick={handleSend}
+                    disabled={sendDisabled}>
+                </lightning-button>
+
+            </div>
+
+
+            <div class="input-help">
+
+                Press Enter to send. Use Shift + Enter for a new line.
+
+            </div>
 
         </div>
 

@@ -5,6 +5,11 @@
 
     <isExposed>true</isExposed>
 
+    <masterLabel>AI Customer Service Agent</masterLabel>
+    <description>
+        Enterprise Salesforce AI Customer Service Agent Console
+    </description>
+
     <targets>
         <target>lightning__AppPage</target>
         <target>lightning__HomePage</target>
