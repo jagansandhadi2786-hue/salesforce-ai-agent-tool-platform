@@ -8,7 +8,6 @@ public with sharing class AI_AgentIntentResolver {
      */
     private static final Decimal DEFAULT_CONFIDENCE = 0.95;
 
-
     /*
      * Resolve the user's natural-language message
      * into a structured Agent intent.
@@ -46,7 +45,6 @@ public with sharing class AI_AgentIntentResolver {
                 'get_order_status'
             );
         }
-
 
         /*
          * Open cases
@@ -376,7 +374,6 @@ public with sharing class AI_AgentIntentResolver {
                 message.contains('details of customer')
             );
     }
-
 
     /*
      * SEARCH_CUSTOMER
