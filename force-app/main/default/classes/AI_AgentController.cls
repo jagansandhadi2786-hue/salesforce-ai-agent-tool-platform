@@ -14,7 +14,7 @@ public with sharing class AI_AgentController {
                 response = new AI_AgentResponse();
                 response.success = false;
                 response.message = 'Please enter a message.';
-                response.errorMessage = 'User message is blank.';
+                response.errorMessage = 'User message is required.';
 
                 return response;
             }
