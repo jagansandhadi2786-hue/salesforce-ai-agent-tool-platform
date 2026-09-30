@@ -1,111 +1,103 @@
 public with sharing class AI_AgentResponseFormatter {
 
+    /*
+     * Format the final user-facing message.
+     *
+     * The orchestrator is responsible for building
+     * AI_AgentResponse. This formatter is responsible
+     * only for generating the natural-language message.
+     */
     public static String format(
         AI_AgentRequest request,
         AI_AgentIntent intent,
-        AI_AgentToolSelection selection,
+        AI_AgentToolSelection selectedTool,
         AI_AgentArgumentResult argumentResult,
         AI_ToolResponse toolResponse
     ) {
 
-        if (toolResponse == null) {
-            return 'I could not complete the request.';
+        /*
+         * ------------------------------------------------
+         * 1. Argument validation
+         * ------------------------------------------------
+         */
+        if (argumentResult != null &&
+            !argumentResult.complete) {
+
+            if (!String.isBlank(argumentResult.message)) {
+                return argumentResult.message;
+            }
+
+            if (!String.isBlank(argumentResult.missingArgument)) {
+                return
+                    'I need the following information before I can continue: ' +
+                    argumentResult.missingArgument;
+            }
+
+            return
+                'I need additional information before I can continue.';
         }
 
+
         /*
-         * Approval takes precedence over normal success/failure.
+         * ------------------------------------------------
+         * 2. No tool response
+         * ------------------------------------------------
+         */
+        if (toolResponse == null) {
+
+            return
+                'I could not complete the request because the tool did not return a response.';
+        }
+
+
+        /*
+         * ------------------------------------------------
+         * 3. Approval required
+         * ------------------------------------------------
          */
         if (toolResponse.requiresApproval == true) {
-            return 'This action requires approval before it can be executed.';
+
+            if (!String.isBlank(toolResponse.message)) {
+                return toolResponse.message;
+            }
+
+            return
+                'Approval is required before this request can be completed.';
         }
 
-        /*
-         * Tool execution failed.
-         */
-        if (toolResponse.success != true) {
-            return 'I could not complete the requested action.';
-        }
 
         /*
-         * Successful execution without a specific intent.
+         * ------------------------------------------------
+         * 4. Successful tool execution
+         * ------------------------------------------------
          */
-        if (intent == null) {
-            return 'The request was completed successfully.';
+        if (toolResponse.success == true) {
+
+            if (!String.isBlank(toolResponse.message)) {
+                return toolResponse.message;
+            }
+
+            return
+                'The request was completed successfully.';
         }
 
-        /*
-         * Customer search.
-         */
-        if (intent.intentName == 'SEARCH_CUSTOMER') {
-            return 'Customer search completed successfully.';
-        }
 
         /*
-         * Customer details.
+         * ------------------------------------------------
+         * 5. Tool execution failure
+         * ------------------------------------------------
          */
-        if (intent.intentName == 'GET_CUSTOMER_DETAILS') {
-            return 'Customer details were retrieved successfully.';
+        if (!String.isBlank(toolResponse.message)) {
+            return toolResponse.message;
         }
 
-        /*
-         * Open cases.
-         */
-        if (intent.intentName == 'GET_OPEN_CASES') {
-            return 'Open cases were retrieved successfully.';
-        }
 
         /*
-         * Case details.
+         * ------------------------------------------------
+         * 6. Safe generic fallback
+         * ------------------------------------------------
          */
-        if (intent.intentName == 'GET_CASE_DETAILS') {
-            return 'Case details were retrieved successfully.';
-        }
-
-        /*
-         * Create case.
-         */
-        if (intent.intentName == 'CREATE_CASE') {
-            return 'The case request was submitted successfully.';
-        }
-
-        /*
-         * Update case.
-         */
-        if (intent.intentName == 'UPDATE_CASE') {
-            return 'The case update was completed successfully.';
-        }
-
-        /*
-         * Create task.
-         */
-        if (intent.intentName == 'CREATE_TASK') {
-            return 'The task was created successfully.';
-        }
-
-        /*
-         * Escalate case.
-         */
-        if (intent.intentName == 'ESCALATE_CASE') {
-            return 'The case was escalated successfully.';
-        }
-
-        /*
-         * Knowledge search.
-         */
-        if (intent.intentName == 'SEARCH_KNOWLEDGE') {
-            return 'Knowledge search completed successfully.';
-        }
-
-        /*
-         * Order status.
-         */
-        if (intent.intentName == 'GET_ORDER_STATUS') {
-            return 'Order status was retrieved successfully.';
-        }
-
-        /*
-         * Default success message.
-         */
-        return 'The request was completed successfully.';
+        return
+            'I could not complete the request.';
     }
 }
