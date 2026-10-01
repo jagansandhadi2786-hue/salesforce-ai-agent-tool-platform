@@ -9,8 +9,7 @@ public with sharing class AI_AgentController {
 
             /*
              * ------------------------------------------------
-             * STEP 1
-             * Validate the message received from the UI.
+             * Validate incoming message
              * ------------------------------------------------
              */
             if (String.isBlank(userMessage)) {
@@ -19,6 +18,10 @@ public with sharing class AI_AgentController {
 
                 response.success = false;
 
+                /*
+                 * Keep message and errorMessage consistent.
+                 * This also satisfies AI_AgentControllerTest.
+                 */
                 response.message =
                     'User message is required.';
 
@@ -28,14 +31,9 @@ public with sharing class AI_AgentController {
                 return response;
             }
 
-
             /*
              * ------------------------------------------------
-             * STEP 2
-             * Preserve the actual natural-language message.
-             *
-             * IMPORTANT:
-             * Do NOT replace this with GENERAL_CHAT.
+             * Normalize input
              * ------------------------------------------------
              */
             userMessage = userMessage.trim();
@@ -45,11 +43,9 @@ public with sharing class AI_AgentController {
                 'AI AGENT INPUT = [' + userMessage + ']'
             );
 
-
             /*
              * ------------------------------------------------
-             * STEP 3
-             * Build the agent request.
+             * Build Agent Request
              * ------------------------------------------------
              */
             AI_AgentRequest request =
@@ -65,29 +61,35 @@ public with sharing class AI_AgentController {
                 ']'
             );
 
-
             /*
              * ------------------------------------------------
-             * STEP 4
-             * Send request to the Agent Orchestrator.
-             *
-             * AI_AgentOrchestrator.process() is STATIC
-             * in the existing implementation.
+             * Execute Agent
              * ------------------------------------------------
              */
             response =
                 AI_AgentOrchestrator.process(request);
 
-            return response;
+            /*
+             * Safety check
+             */
+            if (response == null) {
 
+                response =
+                    new AI_AgentResponse();
+
+                response.success = false;
+
+                response.message =
+                    'I could not complete the request.';
+
+                response.errorMessage =
+                    'Agent returned a null response.';
+            }
+
+            return response;
 
         } catch (AI_ServiceException ex) {
 
-            /*
-             * ------------------------------------------------
-             * SERVICE ERROR
-             * ------------------------------------------------
-             */
             response =
                 new AI_AgentResponse();
 
@@ -107,14 +109,8 @@ public with sharing class AI_AgentController {
 
             return response;
 
-
         } catch (Exception ex) {
 
-            /*
-             * ------------------------------------------------
-             * UNEXPECTED ERROR
-             * ------------------------------------------------
-             */
             response =
                 new AI_AgentResponse();
 

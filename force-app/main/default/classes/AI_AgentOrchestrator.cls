@@ -9,10 +9,11 @@ public with sharing class AI_AgentOrchestrator {
 
         try {
 
-            // --------------------------------------------------
-            // 1. Validate agent request
-            // --------------------------------------------------
-
+            /*
+             * ------------------------------------------------
+             * Validate request
+             * ------------------------------------------------
+             */
             if (request == null) {
 
                 response.success = false;
@@ -26,7 +27,16 @@ public with sharing class AI_AgentOrchestrator {
                 return response;
             }
 
-            if (String.isBlank(request.userMessage)) {
+            /*
+             * ------------------------------------------------
+             * Validate user message
+             * ------------------------------------------------
+             */
+            if (
+                String.isBlank(
+                    request.userMessage
+                )
+            ) {
 
                 response.success = false;
 
@@ -34,16 +44,16 @@ public with sharing class AI_AgentOrchestrator {
                     'User message is required.';
 
                 response.message =
-                    'Please provide a request.';
+                    'User message is required.';
 
                 return response;
             }
 
-
-            // --------------------------------------------------
-            // 2. Resolve user intent
-            // --------------------------------------------------
-
+            /*
+             * ------------------------------------------------
+             * Resolve intent
+             * ------------------------------------------------
+             */
             AI_AgentIntent intent =
                 AI_AgentIntentResolver.resolve(
                     request
@@ -65,11 +75,11 @@ public with sharing class AI_AgentOrchestrator {
             response.intent =
                 intent.intentName;
 
-
-            // --------------------------------------------------
-            // 3. Select approved tool
-            // --------------------------------------------------
-
+            /*
+             * ------------------------------------------------
+             * Select tool
+             * ------------------------------------------------
+             */
             AI_AgentToolSelection selection =
                 AI_AgentToolSelector.selectTool(
                     intent
@@ -106,22 +116,17 @@ public with sharing class AI_AgentOrchestrator {
             response.selectedTool =
                 selection.toolName;
 
-
-            // --------------------------------------------------
-            // 4. Build tool arguments
-            // --------------------------------------------------
-
+            /*
+             * ------------------------------------------------
+             * Build tool arguments
+             * ------------------------------------------------
+             */
             AI_AgentArgumentResult argumentResult =
                 AI_AgentArgumentBuilder.build(
                     request,
                     intent,
                     selection
                 );
-
-
-            // --------------------------------------------------
-            // 5. Check whether argument resolution is required
-            // --------------------------------------------------
 
             if (argumentResult == null) {
 
@@ -136,6 +141,11 @@ public with sharing class AI_AgentOrchestrator {
                 return response;
             }
 
+            /*
+             * ------------------------------------------------
+             * Missing arguments
+             * ------------------------------------------------
+             */
             if (!argumentResult.complete) {
 
                 response.success = false;
@@ -153,11 +163,11 @@ public with sharing class AI_AgentOrchestrator {
                 return response;
             }
 
-
-            // --------------------------------------------------
-            // 6. Build Phase 6 AI_ToolRequest
-            // --------------------------------------------------
-
+            /*
+             * ------------------------------------------------
+             * Build Tool Request
+             * ------------------------------------------------
+             */
             AI_ToolRequest toolRequest =
                 new AI_ToolRequest();
 
@@ -167,20 +177,24 @@ public with sharing class AI_AgentOrchestrator {
             toolRequest.arguments =
                 argumentResult.arguments;
 
-
-            // --------------------------------------------------
-            // 7. Execute through Phase 6 security boundary
-            // --------------------------------------------------
-
+            /*
+             * ------------------------------------------------
+             * Execute Tool
+             * ------------------------------------------------
+             */
             AI_ToolResponse toolResponse =
                 AI_ToolExecutor.execute(
                     toolRequest
                 );
 
-
-            // --------------------------------------------------
-            // 8. Convert tool response into agent response
-            // --------------------------------------------------
+            /*
+             * Diagnostic logging
+             */
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT TOOL RESPONSE = ' +
+                JSON.serialize(toolResponse)
+            );
 
             if (toolResponse == null) {
 
@@ -195,6 +209,43 @@ public with sharing class AI_AgentOrchestrator {
                 return response;
             }
 
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT TOOL SUCCESS = ' +
+                String.valueOf(
+                    toolResponse.success
+                )
+            );
+
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT TOOL MESSAGE = ' +
+                String.valueOf(
+                    toolResponse.message
+                )
+            );
+
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT TOOL ERROR CODE = ' +
+                String.valueOf(
+                    toolResponse.errorCode
+                )
+            );
+
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT TOOL DATA = ' +
+                String.valueOf(
+                    toolResponse.data
+                )
+            );
+
+            /*
+             * ------------------------------------------------
+             * Copy Tool Response
+             * ------------------------------------------------
+             */
             response.success =
                 toolResponse.success;
 
@@ -207,8 +258,14 @@ public with sharing class AI_AgentOrchestrator {
             response.errorMessage =
                 toolResponse.errorCode;
 
+            /*
+             * If the tool failed but did not provide
+             * an errorCode, use its message.
+             */
             if (
-                String.isBlank(response.errorMessage) &&
+                String.isBlank(
+                    response.errorMessage
+                ) &&
                 toolResponse.success != true
             ) {
 
@@ -216,11 +273,11 @@ public with sharing class AI_AgentOrchestrator {
                     toolResponse.message;
             }
 
-
-            // --------------------------------------------------
-            // 9. Format user-facing response
-            // --------------------------------------------------
-
+            /*
+             * ------------------------------------------------
+             * Format final response
+             * ------------------------------------------------
+             */
             response.message =
                 AI_AgentResponseFormatter.format(
                     request,
@@ -230,32 +287,31 @@ public with sharing class AI_AgentOrchestrator {
                     toolResponse
                 );
 
-            return response;
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT FINAL RESPONSE = ' +
+                JSON.serialize(response)
+            );
 
+            return response;
 
         } catch (AI_ServiceException ex) {
 
             response.success = false;
 
-            /*
-             * TEMPORARY DIAGNOSTIC
-             *
-             * This exposes the exact AI_ServiceException
-             * so we can identify why tool selection or
-             * another service-layer operation is failing.
-             *
-             * Remove the "DIAGNOSTIC:" prefix after the
-             * root cause has been identified.
-             */
             response.message =
-                'DIAGNOSTIC: ' +
-                ex.getMessage();
+                'I could not complete the request.';
 
             response.errorMessage =
                 ex.getMessage();
 
-            return response;
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT SERVICE ERROR = ' +
+                ex.getMessage()
+            );
 
+            return response;
 
         } catch (Exception ex) {
 
@@ -265,7 +321,13 @@ public with sharing class AI_AgentOrchestrator {
                 'I could not complete the request.';
 
             response.errorMessage =
-                'Unexpected agent processing error.';
+                ex.getMessage();
+
+            System.debug(
+                LoggingLevel.ERROR,
+                'AI AGENT UNEXPECTED ERROR = ' +
+                ex.getMessage()
+            );
 
             return response;
         }

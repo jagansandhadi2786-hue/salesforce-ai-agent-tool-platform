@@ -1,4 +1,3 @@
-
 public with sharing class AI_ToolExecutor {
 
     /*
@@ -160,10 +159,28 @@ public with sharing class AI_ToolExecutor {
                         accounts
                     );
 
-                return AI_ToolResponse.success(
-                    request.toolName,
-                    responseData
-                );
+                /*
+                 * A search returning zero records is NOT a tool
+                 * execution failure.
+                 *
+                 * The tool executed successfully, but no matching
+                 * customer was found.
+                 */
+                AI_ToolResponse response =
+                    AI_ToolResponse.success(
+                        request.toolName,
+                        responseData
+                    );
+
+                if (accounts.isEmpty()) {
+
+                    response.message =
+                        'I could not find a customer matching "' +
+                        customerName +
+                        '".';
+                }
+
+                return response;
             }
 
 
