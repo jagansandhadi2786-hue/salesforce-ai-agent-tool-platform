@@ -20,6 +20,15 @@ public class AI_AgentContext {
 
     public String failureReason;
 
+    // Salesforce AI Agent session record ID
+    public Id sessionRecordId;
+
+    // Business/session identifier
+    public String sessionId;
+
+    // Complete Salesforce session record
+    public AI_Agent_Session__c sessionRecord;
+
 
     public AI_AgentContext() {
 
@@ -49,7 +58,10 @@ public class AI_AgentContext {
     ) {
 
         if (response != null) {
-            toolResponses.add(response);
+
+            toolResponses.add(
+                response
+            );
         }
     }
 

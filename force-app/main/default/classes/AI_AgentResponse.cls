@@ -5,17 +5,12 @@ public class AI_AgentResponse {
      * processed the request.
      */
     public Boolean success;
-
     /*
      * Natural-language response returned to the user.
      */
     public String message;
-
     /*
      * Detected Agent intent.
-     *
-     * Example:
-     * GET_OPEN_CASES
      */
     public String intent;
 
@@ -47,6 +42,9 @@ public class AI_AgentResponse {
      * credentials, or internal implementation details here.
      */
     public String errorMessage;
+    public String sessionId;
+        //So the LWC/API can maintain the conversation.
+
 
 
     /*
