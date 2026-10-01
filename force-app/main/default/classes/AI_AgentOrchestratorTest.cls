@@ -296,4 +296,100 @@ static void setupToolRegistry() {
             response.success
         );
     }
+    @IsTest
+static void testOpenCasesForCustomerRequiresChain() {
+
+    Account accountRecord =
+        new Account(
+            Name = 'Acme'
+        );
+    insert accountRecord;
+    Case caseRecord =
+        new Case(
+            AccountId = accountRecord.Id,
+            Subject = 'Acme Support Case',
+            Status = 'New',
+            Priority = 'Medium',
+            Origin = 'Web'
+        );
+
+    insert caseRecord;
+
+
+    AI_AgentRequest request =
+        new AI_AgentRequest();
+
+    request.userMessage =
+        'Find the open cases for Acme';
+
+
+    Test.startTest();
+
+    AI_AgentResponse response =
+        AI_AgentOrchestrator.process(request);
+
+    Test.stopTest();
+
+
+    System.assertNotEquals(
+        null,
+        response
+    );
+
+    System.assertEquals(
+        'GET_OPEN_CASES',
+        response.intent
+    );
+
+    System.assertEquals(
+        'get_open_cases',
+        response.selectedTool
+    );
+}
+@IsTest
+static void testMaximumChainDepth() {
+
+    AI_AgentContext context =
+        new AI_AgentContext();
+
+    System.assertEquals(
+        5,
+        context.maxDepth
+    );
+
+    context.stepNumber = 5;
+
+    System.assertEquals(
+        false,
+        context.canExecuteNextStep(),
+        'Agent must stop after maximum chain depth.'
+    );
+}
+@IsTest
+static void testContextRecordsToolResponses() {
+
+    AI_AgentContext context =
+        new AI_AgentContext();
+
+    AI_ToolResponse response =
+        AI_ToolResponse.failure(
+            'search_customer',
+            'Test failure'
+        );
+
+    context.recordToolResponse(
+        response
+    );
+
+    System.assertEquals(
+        1,
+        context.toolResponses.size()
+    );
+
+    System.assertEquals(
+        1,
+        context.getExecutedStepCount()
+    );
+}
+
 }
