@@ -25,21 +25,35 @@ public class AI_AgentLLMResponse {
 
         success = false;
 
-        arguments = new Map<String, Object>();
+        arguments =
+            new Map<String, Object>();
 
-        toolCalls = new List<AI_AgentLLMToolCall>();
+        toolCalls =
+            new List<AI_AgentLLMToolCall>();
 
         requiresToolCall = false;
     }
 
 
+    /*
+     * Validate the interpreted LLM response.
+     *
+     * A response is valid when:
+     *  - the LLM operation succeeded
+     *  - an intent was identified
+     *  - either a legacy toolName exists
+     *    or a native tool call exists
+     */
     public Boolean isValid() {
 
         return success == true
             && !String.isBlank(intent)
             && (
                 !String.isBlank(toolName)
-                || (toolCalls != null && !toolCalls.isEmpty())
+                || (
+                    toolCalls != null
+                    && !toolCalls.isEmpty()
+                )
             );
     }
 }

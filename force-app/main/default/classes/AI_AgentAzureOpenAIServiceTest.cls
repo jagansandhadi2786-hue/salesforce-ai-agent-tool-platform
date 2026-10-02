@@ -1,22 +1,21 @@
 @IsTest
 private class AI_AgentAzureOpenAIServiceTest {
 
-
     @IsTest
-    static void testSuccessfulAzureResponse() {
+    static void testNativeFunctionCallResponse() {
 
         String responseBody =
             '{' +
-            '"output_text":' +
-            '"{\\"intent\\":\\"GET_OPEN_CASES\\",' +
-            '\\"toolName\\":\\"get_open_cases\\",' +
-            '\\"arguments\\":{' +
-            '\\"customer_name\\":\\"Acme\\"},' +
-            '\\"assistantMessage\\":' +
-            '\\"I will check the open cases.\\",' +
-            '\\"confidence\\":0.96}"' +
+                '"id":"resp_123",' +
+                '"output":[' +
+                    '{' +
+                        '"type":"function_call",' +
+                        '"call_id":"call_123",' +
+                        '"name":"search_customer",' +
+                        '"arguments":"{\\"customer_name\\":\\"Acme\\"}"' +
+                    '}' +
+                ']' +
             '}';
-
 
         Test.setMock(
             HttpCalloutMock.class,
@@ -26,13 +25,11 @@ private class AI_AgentAzureOpenAIServiceTest {
             )
         );
 
-
         AI_AgentLLMRequest request =
             new AI_AgentLLMRequest();
 
         request.userMessage =
-            'Find the open cases for Acme';
-
+            'Find customer Acme';
 
         Test.startTest();
 
@@ -43,169 +40,185 @@ private class AI_AgentAzureOpenAIServiceTest {
 
         Test.stopTest();
 
+        System.assertNotEquals(
+            null,
+            response,
+            'LLM response must not be null.'
+        );
 
         System.assertEquals(
             true,
-            response.success
+            response.success,
+            'Response should be successful.'
         );
-
 
         System.assertEquals(
-            'GET_OPEN_CASES',
-            response.intent
+            true,
+            response.requiresToolCall,
+            'Response should require a tool call.'
         );
-
 
         System.assertEquals(
-            'get_open_cases',
-            response.toolName
+            1,
+            response.toolCalls.size(),
+            'Exactly one tool call should be returned.'
         );
 
+        AI_AgentLLMToolCall toolCall =
+            response.toolCalls[0];
+
+        System.assertEquals(
+            'call_123',
+            toolCall.callId,
+            'Tool call ID should be parsed correctly.'
+        );
+
+        System.assertEquals(
+            'search_customer',
+            toolCall.toolName,
+            'Tool name should be parsed correctly.'
+        );
 
         System.assertEquals(
             'Acme',
             String.valueOf(
-                response.arguments.get(
+                toolCall.arguments.get(
                     'customer_name'
                 )
+            ),
+            'Tool argument should be parsed correctly.'
+        );
+    }
+
+
+    @IsTest
+    static void testHttp500() {
+
+        String responseBody =
+            '{"error":{"message":"Internal server error"}}';
+
+        Test.setMock(
+            HttpCalloutMock.class,
+            new AI_AgentAzureOpenAIHttpMock(
+                500,
+                responseBody
             )
         );
 
+        AI_AgentLLMRequest request =
+            new AI_AgentLLMRequest();
 
-        System.assertEquals(
-            Decimal.valueOf('0.96'),
-            response.confidence
-        );
+        request.userMessage =
+            'Find customer Acme';
+
+        Test.startTest();
+
+        try {
+
+            AI_AgentAzureOpenAIService.generate(
+                request
+            );
+
+            System.assert(
+                false,
+                'Expected Azure OpenAI exception.'
+            );
+
+        } catch (AI_ServiceException ex) {
+
+            System.assertEquals(
+                'Azure OpenAI request failed.',
+                ex.getMessage()
+            );
+        }
+
+        Test.stopTest();
     }
 
 
-@IsTest
-static void testAzureHttpError() {
+    @IsTest
+    static void testInvalidJson() {
 
-    Test.setMock(
-        HttpCalloutMock.class,
-        new AI_AgentAzureOpenAIHttpMock(
-            500,
-            '{"error":{"message":"Internal error"}}'
-        )
-    );
-
-
-    AI_AgentLLMRequest request =
-        new AI_AgentLLMRequest();
-
-    request.userMessage =
-        'Find the open cases for Acme';
-
-
-    Test.startTest();
-
-    try {
-
-        AI_AgentAzureOpenAIService.generate(
-            request
+        Test.setMock(
+            HttpCalloutMock.class,
+            new AI_AgentAzureOpenAIHttpMock(
+                200,
+                'NOT VALID JSON'
+            )
         );
 
-        System.assert(
-            false,
-            'Expected Azure error.'
-        );
+        AI_AgentLLMRequest request =
+            new AI_AgentLLMRequest();
 
-    } catch (AI_ServiceException ex) {
+        request.userMessage =
+            'Find customer Acme';
 
-        System.assertEquals(
-            'Azure OpenAI request failed.',
-            ex.getMessage()
-        );
+        Test.startTest();
+
+        try {
+
+            AI_AgentAzureOpenAIService.generate(
+                request
+            );
+
+            System.assert(
+                false,
+                'Expected invalid response exception.'
+            );
+
+        } catch (AI_ServiceException ex) {
+
+            System.assertEquals(
+                'Azure OpenAI returned an invalid response.',
+                ex.getMessage()
+            );
+        }
+
+        Test.stopTest();
     }
 
-    Test.stopTest();
-}
-@IsTest
-static void testInvalidAzureJson() {
 
-    Test.setMock(
-        HttpCalloutMock.class,
-        new AI_AgentAzureOpenAIHttpMock(
-            200,
-            'NOT VALID JSON'
-        )
-    );
+    @IsTest
+    static void testMissingOutput() {
 
+        String responseBody =
+            '{"id":"resp_123"}';
 
-    AI_AgentLLMRequest request =
-        new AI_AgentLLMRequest();
-
-    request.userMessage =
-        'Find Acme';
-
-
-    Test.startTest();
-
-    try {
-
-        AI_AgentAzureOpenAIService.generate(
-            request
+        Test.setMock(
+            HttpCalloutMock.class,
+            new AI_AgentAzureOpenAIHttpMock(
+                200,
+                responseBody
+            )
         );
 
-        System.assert(
-            false,
-            'Expected invalid JSON error.'
-        );
+        AI_AgentLLMRequest request =
+            new AI_AgentLLMRequest();
 
-    } catch (AI_ServiceException ex) {
+        request.userMessage =
+            'Find customer Acme';
 
-        System.assertEquals(
-            'Azure OpenAI returned invalid JSON.',
-            ex.getMessage()
-        );
+        Test.startTest();
+
+        try {
+
+            AI_AgentAzureOpenAIService.generate(
+                request
+            );
+
+            System.assert(
+                false,
+                'Expected invalid response exception.'
+            );
+
+        } catch (AI_ServiceException ex) {
+
+            System.assertEquals(
+                'Azure OpenAI returned an invalid response.',
+                ex.getMessage()
+            );
+        }
+
+        Test.stopTest();
     }
-
-    Test.stopTest();
-}
-
-@IsTest
-static void testMissingOutputText() {
-
-    Test.setMock(
-        HttpCalloutMock.class,
-        new AI_AgentAzureOpenAIHttpMock(
-            200,
-            '{"id":"response-123"}'
-        )
-    );
-
-
-    AI_AgentLLMRequest request =
-        new AI_AgentLLMRequest();
-
-    request.userMessage =
-        'Find Acme';
-
-
-    Test.startTest();
-
-    try {
-
-        AI_AgentAzureOpenAIService.generate(
-            request
-        );
-
-        System.assert(
-            false,
-            'Expected missing output error.'
-        );
-
-    } catch (AI_ServiceException ex) {
-
-        System.assertEquals(
-            'Azure OpenAI returned no structured output.',
-            ex.getMessage()
-        );
-    }
-
-    Test.stopTest();
-}
-
-
 }
