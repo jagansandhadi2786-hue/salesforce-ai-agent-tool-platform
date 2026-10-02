@@ -14,13 +14,22 @@ public class AI_AgentLLMResponse {
 
     public String errorMessage;
 
+    public Boolean requiresToolCall;
+
+    public String responseId;
+
+    public List<AI_AgentLLMToolCall> toolCalls;
+
 
     public AI_AgentLLMResponse() {
 
         success = false;
 
-        arguments =
-            new Map<String, Object>();
+        arguments = new Map<String, Object>();
+
+        toolCalls = new List<AI_AgentLLMToolCall>();
+
+        requiresToolCall = false;
     }
 
 
@@ -28,6 +37,9 @@ public class AI_AgentLLMResponse {
 
         return success == true
             && !String.isBlank(intent)
-            && !String.isBlank(toolName);
+            && (
+                !String.isBlank(toolName)
+                || (toolCalls != null && !toolCalls.isEmpty())
+            );
     }
 }

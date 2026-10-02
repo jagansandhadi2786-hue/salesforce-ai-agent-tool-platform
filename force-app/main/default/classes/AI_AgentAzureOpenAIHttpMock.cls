@@ -3,22 +3,15 @@ global class AI_AgentAzureOpenAIHttpMock
     implements HttpCalloutMock {
 
     private Integer statusCode;
-
     private String responseBody;
-
 
     public AI_AgentAzureOpenAIHttpMock(
         Integer statusCode,
         String responseBody
     ) {
-
-        this.statusCode =
-            statusCode;
-
-        this.responseBody =
-            responseBody;
+        this.statusCode = statusCode;
+        this.responseBody = responseBody;
     }
-
 
     global HttpResponse respond(
         HttpRequest request
@@ -29,13 +22,11 @@ global class AI_AgentAzureOpenAIHttpMock
             request.getMethod()
         );
 
-
         System.assert(
             request.getEndpoint().contains(
                 'Azure_OpenAI'
             )
         );
-
 
         System.assertEquals(
             'application/json',
@@ -44,20 +35,21 @@ global class AI_AgentAzureOpenAIHttpMock
             )
         );
 
-
         HttpResponse response =
             new HttpResponse();
-
 
         response.setStatusCode(
             statusCode
         );
 
-
         response.setBody(
             responseBody
         );
 
+        response.setHeader(
+            'Content-Type',
+            'application/json'
+        );
 
         return response;
     }
