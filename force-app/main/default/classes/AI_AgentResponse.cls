@@ -1,71 +1,78 @@
 public class AI_AgentResponse {
 
-    /*
-     * Indicates whether the Agent successfully
-     * processed the request.
-     */
+    // ============================================================
+    // Existing response properties
+    // ============================================================
+
+    @AuraEnabled
     public Boolean success;
-    /*
-     * Natural-language response returned to the user.
-     */
+
+    @AuraEnabled
     public String message;
-    /*
-     * Detected Agent intent.
-     */
+
+    @AuraEnabled
     public String intent;
 
-    /*
-     * Tool selected by the Agent.
-     *
-     * Example:
-     * get_open_cases
-     */
+    @AuraEnabled
     public String selectedTool;
 
-    /*
-     * Tool result.
-     *
-     * This remains generic because different tools
-     * return different DTO structures.
-     */
+    @AuraEnabled
     public Object toolData;
 
-    /*
-     * Indicates that human approval is required.
-     */
+    @AuraEnabled
     public Boolean approvalRequired;
 
-    /*
-     * Sanitized error message.
-     *
-     * Do not place stack traces, SOQL, tokens,
-     * credentials, or internal implementation details here.
-     */
+    @AuraEnabled
     public String errorMessage;
+
+
+    // ============================================================
+    // New agent execution properties
+    // ============================================================
+
+    @AuraEnabled
     public String sessionId;
-        //So the LWC/API can maintain the conversation.
+
+    @AuraEnabled
+    public String agentStatus;
+
+    @AuraEnabled
+    public String executionStatus;
+
+    @AuraEnabled
+    public Decimal executionTime;
+
+    @AuraEnabled
+    public List<AI_AgentToolExecutionResponse> toolExecutions;
 
 
+    // ============================================================
+    // Default constructor
+    // ============================================================
 
-    /*
-     * Default constructor.
-     */
     public AI_AgentResponse() {
+
         this.success = false;
         this.approvalRequired = false;
+
+        this.toolExecutions =
+            new List<AI_AgentToolExecutionResponse>();
     }
 
 
-    /*
-     * Successful response.
-     */
+    // ============================================================
+    // Successful response
+    // ============================================================
+
     public static AI_AgentResponse successResponse(
         String message,
         String intent,
         String selectedTool,
         Object toolData
     ) {
-        AI_AgentResponse response = new AI_AgentResponse();
+
+        AI_AgentResponse response =
+            new AI_AgentResponse();
 
         response.success = true;
         response.message = message;
@@ -75,20 +82,26 @@ public class AI_AgentResponse {
         response.approvalRequired = false;
         response.errorMessage = null;
 
+        response.agentStatus = 'COMPLETED';
+        response.executionStatus = 'SUCCESS';
+
         return response;
     }
 
 
-    /*
-     * Approval-required response.
-     */
+    // ============================================================
+    // Approval-required response
+    // ============================================================
+
     public static AI_AgentResponse approvalRequiredResponse(
         String message,
         String intent,
         String selectedTool,
         Object toolData
     ) {
-        AI_AgentResponse response = new AI_AgentResponse();
+
+        AI_AgentResponse response =
+            new AI_AgentResponse();
 
         response.success = false;
         response.message = message;
@@ -98,20 +111,26 @@ public class AI_AgentResponse {
         response.approvalRequired = true;
         response.errorMessage = null;
 
+        response.agentStatus = 'WAITING_FOR_APPROVAL';
+        response.executionStatus = 'APPROVAL_REQUIRED';
+
         return response;
     }
 
 
-    /*
-     * Failure response.
-     */
+    // ============================================================
+    // Failure response
+    // ============================================================
+
     public static AI_AgentResponse failureResponse(
         String message,
         String intent,
         String selectedTool,
         String errorMessage
     ) {
-        AI_AgentResponse response = new AI_AgentResponse();
+
+        AI_AgentResponse response =
+            new AI_AgentResponse();
 
         response.success = false;
         response.message = message;
@@ -120,6 +139,9 @@ public class AI_AgentResponse {
         response.toolData = null;
         response.approvalRequired = false;
         response.errorMessage = errorMessage;
+
+        response.agentStatus = 'FAILED';
+        response.executionStatus = 'ERROR';
 
         return response;
     }

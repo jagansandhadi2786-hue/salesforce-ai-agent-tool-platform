@@ -9,22 +9,47 @@ const MAX_MESSAGE_LENGTH = 4000;
 
 export default class AiAgentConsole extends LightningElement {
 
+    // ============================================================
+    // Conversation state
+    // ============================================================
+
     messages = [];
 
     inputMessage = '';
 
-    isLoading = false;Cl
+    isLoading = false;
 
     errorMessage = '';
 
     sessionId;
 
 
+    // ============================================================
+    // Agent metadata
+    // ============================================================
+
+    agentStatus = 'Online';
+
+    currentIntent;
+
+    executionStatus;
+
+    toolExecutions = [];
+
+    totalExecutionTime;
+
+
+    // ============================================================
+    // Component initialization
+    // ============================================================
+
     connectedCallback() {
 
         this.sessionId =
             this.generateSessionId();
 
+        this.agentStatus =
+            'Online';
 
         this.addMessage(
             'assistant',
@@ -32,6 +57,10 @@ export default class AiAgentConsole extends LightningElement {
         );
     }
 
+
+    // ============================================================
+    // Generate session ID
+    // ============================================================
 
     generateSessionId() {
 
@@ -41,10 +70,13 @@ export default class AiAgentConsole extends LightningElement {
                 .substring(2, 10)
                 .toUpperCase();
 
-
         return `AGENT-${randomPart}`;
     }
 
+
+    // ============================================================
+    // Getters
+    // ============================================================
 
     get hasMessages() {
 
@@ -73,11 +105,61 @@ export default class AiAgentConsole extends LightningElement {
     }
 
 
+    // ============================================================
+    // Computed UI properties
+    // ============================================================
+
+    get hasToolExecutions() {
+
+        return (
+            this.toolExecutions &&
+            this.toolExecutions.length > 0
+        );
+    }
+
+
+    get hasIntent() {
+
+        return !!this.currentIntent;
+    }
+
+
+    get agentStatusLabel() {
+
+        return this.agentStatus || 'Offline';
+    }
+
+
+    get agentStatusClass() {
+
+        if (
+            this.agentStatus === 'Error'
+        ) {
+
+            return 'status-indicator error';
+        }
+
+
+        if (
+            this.agentStatus === 'Processing'
+        ) {
+
+            return 'status-indicator processing';
+        }
+
+
+        return 'status-indicator online';
+    }
+
+
+    // ============================================================
+    // Input handling
+    // ============================================================
+
     handleInput(event) {
 
         this.inputMessage =
             event.target.value;
-
 
         if (this.errorMessage) {
 
@@ -104,6 +186,10 @@ export default class AiAgentConsole extends LightningElement {
         }
     }
 
+
+    // ============================================================
+    // Send message to Apex
+    // ============================================================
 
     async handleSend() {
 
@@ -135,12 +221,32 @@ export default class AiAgentConsole extends LightningElement {
         }
 
 
+        // --------------------------------------------------------
+        // Start processing
+        // --------------------------------------------------------
+
         this.errorMessage = '';
 
+        this.agentStatus =
+            'Processing';
 
-        /*
-         * Add user message immediately.
-         */
+
+        // --------------------------------------------------------
+        // Reset metadata for new execution
+        // --------------------------------------------------------
+
+        this.currentIntent = null;
+
+        this.executionStatus = null;
+
+        this.toolExecutions = [];
+
+        this.totalExecutionTime = null;
+
+
+        // --------------------------------------------------------
+        // Add user message immediately
+        // --------------------------------------------------------
 
         this.addMessage(
             'user',
@@ -156,6 +262,7 @@ export default class AiAgentConsole extends LightningElement {
         try {
 
             const request = {
+
                 sessionId:
                     this.sessionId,
 
@@ -183,26 +290,100 @@ export default class AiAgentConsole extends LightningElement {
         } finally {
 
             this.isLoading = false;
+
+
+            /*
+             * Return to Online after successful processing.
+             * Do not overwrite Error status.
+             */
+
+            if (
+                this.agentStatus !== 'Error'
+            ) {
+
+                this.agentStatus =
+                    'Online';
+            }
         }
     }
 
 
-    handleAgentResponse(
-        response
-    ) {
+    // ============================================================
+    // Handle structured AI Agent response
+    // ============================================================
+
+    handleAgentResponse(response) {
 
         if (!response) {
 
             this.errorMessage =
                 'The AI agent returned no response.';
 
+            this.agentStatus =
+                'Error';
+
+            this.executionStatus =
+                'ERROR';
+
             return;
         }
 
 
+        // --------------------------------------------------------
+        // Agent status
+        // --------------------------------------------------------
+
+        this.agentStatus =
+            response.agentStatus ||
+            'Online';
+
+
+        // --------------------------------------------------------
+        // Intent
+        // --------------------------------------------------------
+
+        this.currentIntent =
+            response.intent ||
+            null;
+
+
+        // --------------------------------------------------------
+        // Execution status
+        // --------------------------------------------------------
+
+        this.executionStatus =
+            response.executionStatus ||
+            null;
+
+
+        // --------------------------------------------------------
+        // Tool executions
+        // --------------------------------------------------------
+
+        this.toolExecutions =
+            response.toolExecutions ||
+            [];
+
+
+        // --------------------------------------------------------
+        // Execution time
+        // --------------------------------------------------------
+
+        this.totalExecutionTime =
+            response.executionTime ||
+            null;
+
+
+        // --------------------------------------------------------
+        // Handle unsuccessful response
+        // --------------------------------------------------------
+
         if (
             response.success !== true
         ) {
+
+            this.agentStatus =
+                'Error';
 
             this.errorMessage =
                 response.errorMessage ||
@@ -211,34 +392,43 @@ export default class AiAgentConsole extends LightningElement {
 
             this.addMessage(
                 'assistant',
-                'I could not complete that request.'
+                'I could not complete that request.',
+                response
             );
 
             return;
         }
 
 
-        const message =
-            response.message ||
-            'The agent completed the request.';
+        // --------------------------------------------------------
+        // Successful response
+        // --------------------------------------------------------
 
+        this.errorMessage = '';
 
         this.addMessage(
             'assistant',
-            message,
+            response.message ||
+            'The agent completed the request.',
             response
         );
     }
 
 
-    handleError(
-        error
-    ) {
+    // ============================================================
+    // Handle Apex / network errors
+    // ============================================================
+
+    handleError(error) {
 
         console.error(
             'AI Agent error',
             error
         );
+
+
+        this.agentStatus =
+            'Error';
 
 
         let message =
@@ -260,12 +450,20 @@ export default class AiAgentConsole extends LightningElement {
             message;
 
 
+        this.executionStatus =
+            'ERROR';
+
+
         this.addMessage(
             'assistant',
             'I encountered an error while processing your request.'
         );
     }
 
+
+    // ============================================================
+    // Add message to conversation
+    // ============================================================
 
     addMessage(
         role,
@@ -295,6 +493,11 @@ export default class AiAgentConsole extends LightningElement {
                     ? 'message-wrapper user-message'
                     : 'message-wrapper assistant-message',
 
+
+            // ----------------------------------------------------
+            // Existing response metadata
+            // ----------------------------------------------------
+
             intent:
                 response
                     ? response.intent
@@ -308,12 +511,39 @@ export default class AiAgentConsole extends LightningElement {
             approvalRequired:
                 response
                     ? response.approvalRequired === true
-                    : false
+                    : false,
+
+
+            // ----------------------------------------------------
+            // Structured execution metadata
+            // ----------------------------------------------------
+
+            agentStatus:
+                response
+                    ? response.agentStatus
+                    : null,
+
+            executionStatus:
+                response
+                    ? response.executionStatus
+                    : null,
+
+            executionTime:
+                response
+                    ? response.executionTime
+                    : null,
+
+            toolExecutions:
+                response
+                    ? response.toolExecutions || []
+                    : []
         };
 
 
         this.messages = [
+
             ...this.messages,
+
             message
         ];
 
@@ -322,43 +552,57 @@ export default class AiAgentConsole extends LightningElement {
     }
 
 
+    // ============================================================
+    // Clear conversation
+    // ============================================================
+
     clearConversation() {
 
         this.messages = [];
 
         this.errorMessage = '';
 
-        this.sessionId = this.generateSessionId();
+        this.agentStatus =
+            'Online';
+
+        this.currentIntent =
+            null;
+
+        this.executionStatus =
+            null;
+
+        this.toolExecutions =
+            [];
+
+        this.totalExecutionTime =
+            null;
+
+         this.agentStatus = 'Online';    
+
+        this.sessionId =
+            this.generateSessionId();
+
 
         this.addMessage(
             'assistant',
             'Hello! How can I help you today?'
         );
     }
-    
+
+
+    // ============================================================
+    // Clear error
+    // ============================================================
+
     clearError() {
 
         this.errorMessage = '';
-}
-
-    scrollToBottom() {
-
-    window.setTimeout(() => {
-
-        const container =
-            this.template.querySelector(
-                '.messages-container'
-            );
+    }
 
 
-        if (container) {
-
-            container.scrollTop =
-                container.scrollHeight;
-        }
-
-    }, 0);
-}
+    // ============================================================
+    // Scroll conversation to bottom
+    // ============================================================
 
     scrollToBottom() {
 
@@ -378,5 +622,4 @@ export default class AiAgentConsole extends LightningElement {
 
         }, 0);
     }
-    
 }

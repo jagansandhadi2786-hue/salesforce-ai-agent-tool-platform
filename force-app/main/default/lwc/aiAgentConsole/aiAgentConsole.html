@@ -2,39 +2,30 @@
 
     <lightning-card>
 
-        <div
-            class="agent-container"
-        >
+        <div class="agent-container">
 
-            <!-- HEADER -->
 
-            <div
-                class="agent-header"
-            >
+            <!-- ================================================== -->
+            <!-- HEADER                                             -->
+            <!-- ================================================== -->
 
-                <div
-                    class="agent-title-area"
-                >
+            <div class="agent-header">
 
-                    <div
-                        class="agent-icon"
-                    >
+                <div class="agent-title-area">
+
+                    <div class="agent-icon">
                         🤖
                     </div>
 
 
                     <div>
 
-                        <div
-                            class="agent-title"
-                        >
+                        <div class="agent-title">
                             Customer Service AI Agent
                         </div>
 
 
-                        <div
-                            class="agent-subtitle"
-                        >
+                        <div class="agent-subtitle">
                             Enterprise AI Assistant
                         </div>
 
@@ -43,19 +34,41 @@
                 </div>
 
 
-                <div
-                    class="session-info"
-                >
+                <div class="agent-header-right">
 
-                    Session:
-                    {formattedSessionId}
+                    <!-- AGENT STATUS -->
+
+                    <div class="agent-status">
+
+                        <span
+                            class={agentStatusClass}
+                        ></span>
+
+
+                        <span>
+                            {agentStatusLabel}
+                        </span>
+
+                    </div>
+
+
+                    <!-- SESSION -->
+
+                    <div class="session-info">
+
+                        Session:
+                        {formattedSessionId}
+
+                    </div>
 
                 </div>
 
             </div>
 
 
-            <!-- ERROR -->
+            <!-- ================================================== -->
+            <!-- ERROR                                               -->
+            <!-- ================================================== -->
 
             <template
                 if:true={hasError}
@@ -83,7 +96,9 @@
             </template>
 
 
-            <!-- MESSAGES -->
+            <!-- ================================================== -->
+            <!-- MESSAGES                                             -->
+            <!-- ================================================== -->
 
             <div
                 class="messages-container"
@@ -98,6 +113,8 @@
                         key={message.id}
                         class={message.cssClass}
                     >
+
+                        <!-- MESSAGE AVATAR -->
 
                         <div
                             class="message-avatar"
@@ -119,9 +136,13 @@
                         </div>
 
 
+                        <!-- MESSAGE CONTENT -->
+
                         <div
                             class="message-content"
                         >
+
+                            <!-- MESSAGE ROLE -->
 
                             <div
                                 class="message-role"
@@ -142,6 +163,8 @@
 
                             </div>
 
+
+                            <!-- MESSAGE -->
 
                             <div
                                 class="message-bubble"
@@ -195,7 +218,9 @@
                 </template>
 
 
-                <!-- LOADING -->
+                <!-- ================================================== -->
+                <!-- LOADING                                             -->
+                <!-- ================================================== -->
 
                 <template
                     if:true={isLoading}
@@ -248,7 +273,176 @@
             </div>
 
 
-            <!-- INPUT -->
+            <!-- ================================================== -->
+            <!-- EXECUTION SUMMARY                                   -->
+            <!-- ================================================== -->
+
+            <template
+                if:true={hasIntent}
+            >
+
+                <div
+                    class="execution-summary"
+                >
+
+                    <!-- INTENT -->
+
+                    <div
+                        class="summary-item"
+                    >
+
+                        <span
+                            class="summary-label"
+                        >
+                            Intent
+                        </span>
+
+
+                        <span
+                            class="summary-value"
+                        >
+                            {currentIntent}
+                        </span>
+
+                    </div>
+
+
+                    <!-- STATUS -->
+
+                    <div
+                        class="summary-item"
+                    >
+
+                        <span
+                            class="summary-label"
+                        >
+                            Status
+                        </span>
+
+
+                        <span
+                            class="summary-value"
+                        >
+                            {executionStatus}
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </template>
+
+
+            <!-- ================================================== -->
+            <!-- TOOL EXECUTION TIMELINE                             -->
+            <!-- ================================================== -->
+
+            <template
+                if:true={hasToolExecutions}
+            >
+
+                <div
+                    class="tool-timeline"
+                >
+
+                    <div
+                        class="timeline-title"
+                    >
+                        Tool Execution Timeline
+                    </div>
+
+
+                    <template
+                        for:each={toolExecutions}
+                        for:item="tool"
+                    >
+
+                        <div
+                            key={tool.stepNumber}
+                            class="tool-row"
+                        >
+
+                            <!-- STEP NUMBER -->
+
+                            <div
+                                class="tool-step"
+                            >
+                                {tool.stepNumber}
+                            </div>
+
+
+                            <!-- TOOL DETAILS -->
+
+                            <div
+                                class="tool-details"
+                            >
+
+                                <div
+                                    class="tool-name"
+                                >
+                                    {tool.toolName}
+                                </div>
+
+
+                                <div
+                                    class="tool-status"
+                                >
+                                    {tool.status}
+                                </div>
+
+
+                                <!-- TOOL ERROR -->
+
+                                <template
+                                    if:true={tool.errorMessage}
+                                >
+
+                                    <div
+                                        class="tool-error"
+                                    >
+                                        {tool.errorMessage}
+                                    </div>
+
+                                </template>
+
+                            </div>
+
+
+                            <!-- EXECUTION TIME -->
+
+                            <div
+                                class="tool-duration"
+                            >
+                                {tool.executionTime}s
+                            </div>
+
+
+                            <!-- APPROVAL -->
+
+                            <template
+                                if:true={tool.approvalRequired}
+                            >
+
+                                <div
+                                    class="tool-approval"
+                                >
+                                    Approval Required
+                                </div>
+
+                            </template>
+
+                        </div>
+
+                    </template>
+
+                </div>
+
+            </template>
+
+
+            <!-- ================================================== -->
+            <!-- INPUT                                                -->
+            <!-- ================================================== -->
 
             <div
                 class="input-area"
@@ -276,7 +470,9 @@
             </div>
 
 
-            <!-- FOOTER -->
+            <!-- ================================================== -->
+            <!-- FOOTER                                               -->
+            <!-- ================================================== -->
 
             <div
                 class="agent-footer"
@@ -292,10 +488,11 @@
                     onclick={clearConversation}
                     disabled={isLoading}
                 >
-                    Clear
+                    New Conversation
                 </button>
 
             </div>
+
 
         </div>
 

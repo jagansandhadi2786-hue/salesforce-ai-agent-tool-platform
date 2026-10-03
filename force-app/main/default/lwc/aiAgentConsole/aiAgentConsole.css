@@ -6,7 +6,9 @@
 }
 
 
-/* HEADER */
+/* ============================================================
+   HEADER
+   ============================================================ */
 
 .agent-header {
     display: flex;
@@ -50,13 +52,58 @@
 }
 
 
+/* ============================================================
+   HEADER STATUS / SESSION
+   ============================================================ */
+
+.agent-header-right {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+
+.agent-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+
+.status-indicator.online {
+    background: #2e844a;
+}
+
+
+.status-indicator.processing {
+    background: #fe9339;
+}
+
+
+.status-indicator.error {
+    background: #ba0517;
+}
+
+
 .session-info {
     font-size: 11px;
     color: #706e6b;
 }
 
 
-/* ERROR */
+/* ============================================================
+   ERROR
+   ============================================================ */
 
 .error-banner {
     display: flex;
@@ -79,7 +126,9 @@
 }
 
 
-/* MESSAGES */
+/* ============================================================
+   MESSAGES
+   ============================================================ */
 
 .messages-container {
     flex: 1;
@@ -162,7 +211,9 @@
 }
 
 
-/* TOOL INFORMATION */
+/* ============================================================
+   TOOL INFORMATION
+   ============================================================ */
 
 .tool-info {
     margin-top: 5px;
@@ -181,7 +232,130 @@
 }
 
 
-/* TYPING */
+/* ============================================================
+   EXECUTION SUMMARY
+   ============================================================ */
+
+.execution-summary {
+    display: flex;
+    gap: 30px;
+    padding: 10px 16px;
+    background: #ffffff;
+    border-top: 1px solid #d8dde6;
+    border-bottom: 1px solid #d8dde6;
+}
+
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+
+.summary-label {
+    font-size: 10px;
+    color: #706e6b;
+    text-transform: uppercase;
+}
+
+
+.summary-value {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+
+/* ============================================================
+   TOOL EXECUTION TIMELINE
+   ============================================================ */
+
+.tool-timeline {
+    padding: 12px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid #d8dde6;
+}
+
+
+.timeline-title {
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+
+.tool-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid #f0f0f0;
+    position: relative;
+}
+
+
+.tool-step {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef4ff;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+
+.tool-details {
+    flex: 1;
+    min-width: 0;
+}
+
+
+.tool-name {
+    font-size: 12px;
+    font-weight: 700;
+    word-break: break-word;
+}
+
+
+.tool-status {
+    font-size: 10px;
+    color: #2e844a;
+}
+
+
+.tool-duration {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #706e6b;
+}
+
+
+.tool-approval {
+    flex-shrink: 0;
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: #fff5d9;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+
+.tool-error {
+    flex-basis: 100%;
+    margin-left: 34px;
+    font-size: 10px;
+    color: #ba0517;
+    word-break: break-word;
+}
+
+
+/* ============================================================
+   TYPING
+   ============================================================ */
 
 .typing {
     display: flex;
@@ -225,7 +399,9 @@
 }
 
 
-/* INPUT */
+/* ============================================================
+   INPUT
+   ============================================================ */
 
 .input-area {
     display: flex;
@@ -273,7 +449,9 @@
 }
 
 
-/* FOOTER */
+/* ============================================================
+   FOOTER
+   ============================================================ */
 
 .agent-footer {
     display: flex;
@@ -298,4 +476,65 @@
 .clear-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+
+/* ============================================================
+   RESPONSIVE DESIGN
+   ============================================================ */
+
+@media screen and (max-width: 768px) {
+
+    .agent-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+
+    .agent-header-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+
+    .message-wrapper {
+        max-width: 95%;
+    }
+
+
+    .execution-summary {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+
+    .input-area {
+        flex-direction: column;
+    }
+
+
+    .send-button {
+        width: 100%;
+    }
+
+
+    .tool-row {
+        flex-wrap: wrap;
+    }
+
+
+    .tool-duration {
+        margin-left: auto;
+    }
+
+
+    .tool-approval {
+        margin-left: 34px;
+    }
+
+
+    .tool-error {
+        width: calc(100% - 34px);
+    }
 }
