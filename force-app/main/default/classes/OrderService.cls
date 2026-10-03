@@ -1,11 +1,5 @@
 public with sharing class OrderService {
 
-    public class OrderResult {
-        @AuraEnabled public String orderNumber;
-        @AuraEnabled public String status;
-        @AuraEnabled public String message;
-    }
-
     public static OrderResult getOrderStatus(
         String orderNumber
     ) {
@@ -16,20 +10,65 @@ public with sharing class OrderService {
             );
         }
 
-        OrderResult result = new OrderResult();
+        AI_ExternalOrderResponse externalResult =
+            AI_OrderApiService.getOrderStatus(
+                orderNumber
+            );
 
-        result.orderNumber = orderNumber.trim();
-        result.status = 'UNKNOWN';
-        result.message =
-            'External order integration will be implemented in Phase 11.';
+        if (externalResult == null) {
+            throw new AI_ServiceException(
+                'Order service returned no order.'
+            );
+        }
 
-        return result;
+        return new OrderResult(
+            externalResult.orderNumber,
+            externalResult.status,
+            externalResult.message,
+            externalResult.estimatedDelivery,
+            externalResult.trackingNumber
+        );
+    }
+
+    public class OrderResult {
+
+        @AuraEnabled
+        public String orderNumber;
+
+        @AuraEnabled
+        public String status;
+
+        @AuraEnabled
+        public String message;
+
+        @AuraEnabled
+        public String estimatedDelivery;
+
+        @AuraEnabled
+        public String trackingNumber;
+
+        public OrderResult(
+            String orderNumber,
+            String status,
+            String message
+        ) {
+            this.orderNumber = orderNumber;
+            this.status = status;
+            this.message = message;
+        }
+
+        public OrderResult(
+            String orderNumber,
+            String status,
+            String message,
+            String estimatedDelivery,
+            String trackingNumber
+        ) {
+            this.orderNumber = orderNumber;
+            this.status = status;
+            this.message = message;
+            this.estimatedDelivery = estimatedDelivery;
+            this.trackingNumber = trackingNumber;
+        }
     }
 }
-
-// Later will introduce:
-// Salesforce
-// Named Credential
-// OAuth
-// External REST API
-// Order Service

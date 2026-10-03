@@ -487,11 +487,39 @@ private class AI_ToolExecutorTest {
     @IsTest
     static void testGetOrderStatusEndToEnd() {
 
+        /*
+         * Use the shared HTTP mock.
+         *
+         * Do NOT use:
+         * AI_OrderApiServiceTest.OrderApiMock
+         *
+         * OrderApiMock is an inner class of another test class
+         * and is not visible here.
+         */
+        AI_OrderApiHttpMock mock =
+            new AI_OrderApiHttpMock();
+
+        mock.responseStatusCode = 200;
+
+        mock.responseBody =
+            '{' +
+            '"orderNumber":"ORD-1001",' +
+            '"status":"SHIPPED",' +
+            '"message":"Order has been shipped.",' +
+            '"estimatedDelivery":"2026-10-08",' +
+            '"trackingNumber":"TRK123456789"' +
+            '}';
+
+        Test.setMock(
+            HttpCalloutMock.class,
+            mock
+        );
+
         AI_ToolRequest request =
             new AI_ToolRequest(
                 'get_order_status',
                 new Map<String, Object>{
-                    'order_number' => 'TEST-ORDER-001'
+                    'orderNumber' => 'ORD-1001'
                 }
             );
 
@@ -507,6 +535,12 @@ private class AI_ToolExecutorTest {
             response.success,
             'get_order_status failed. Message: ' +
             response.message
+        );
+
+        System.assertNotEquals(
+            null,
+            response.message,
+            'get_order_status should return a response message.'
         );
     }
 

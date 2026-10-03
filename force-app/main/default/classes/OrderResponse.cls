@@ -1,8 +1,19 @@
 public class OrderResponse {
 
+    @AuraEnabled
     public String orderNumber;
+
+    @AuraEnabled
     public String status;
+
+    @AuraEnabled
     public String message;
+
+    @AuraEnabled
+    public String estimatedDelivery;
+
+    @AuraEnabled
+    public String trackingNumber;
 
     public OrderResponse() {
     }
@@ -12,7 +23,6 @@ public class OrderResponse {
         String status,
         String message
     ) {
-
         this.orderNumber = orderNumber;
         this.status = status;
         this.message = message;
