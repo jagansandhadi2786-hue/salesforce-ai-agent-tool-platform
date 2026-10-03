@@ -29,6 +29,7 @@ public class AI_AgentRequest {
      * the same conversational interaction.
      */
     public String conversationId;
+    public String correlationId;
 
 
     /*

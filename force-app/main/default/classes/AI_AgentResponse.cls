@@ -25,6 +25,10 @@ public class AI_AgentResponse {
     @AuraEnabled
     public String errorMessage;
 
+    @AuraEnabled
+    public String correlationId;
+
+
 
     // ============================================================
     // New agent execution properties
