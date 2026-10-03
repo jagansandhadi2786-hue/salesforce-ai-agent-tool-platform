@@ -1,188 +1,326 @@
 import { LightningElement } from 'lwc';
-import processMessage from '@salesforce/apex/AI_AgentController.processMessage';
+
+import processMessage
+    from '@salesforce/apex/AI_AgentController.processMessage';
+
+
+const MAX_MESSAGE_LENGTH = 4000;
+
 
 export default class AiAgentConsole extends LightningElement {
 
-    userMessage = '';
-    isLoading = false;
-    errorMessage = '';
-
     messages = [];
 
+    inputMessage = '';
+
+    isLoading = false;Cl
+
+    errorMessage = '';
+
+    sessionId;
+
+
     connectedCallback() {
-        this.addAgentMessage(
-            'Hello! I am your Salesforce AI Customer Service Agent. How can I help you?'
+
+        this.sessionId =
+            this.generateSessionId();
+
+
+        this.addMessage(
+            'assistant',
+            'Hello! How can I help you today?'
         );
     }
 
-    get sendDisabled() {
-        return this.isLoading || !this.userMessage.trim();
+
+    generateSessionId() {
+
+        const randomPart =
+            Math.random()
+                .toString(36)
+                .substring(2, 10)
+                .toUpperCase();
+
+
+        return `AGENT-${randomPart}`;
     }
 
+
     get hasMessages() {
+
         return this.messages.length > 0;
     }
 
-    handleMessageChange(event) {
-        this.userMessage = event.target.value;
+
+    get sendDisabled() {
+
+        return (
+            this.isLoading ||
+            !this.inputMessage.trim()
+        );
     }
+
+
+    get hasError() {
+
+        return !!this.errorMessage;
+    }
+
+
+    get formattedSessionId() {
+
+        return this.sessionId || 'Starting...';
+    }
+
+
+    handleInput(event) {
+
+        this.inputMessage =
+            event.target.value;
+
+
+        if (this.errorMessage) {
+
+            this.errorMessage = '';
+        }
+    }
+
+
+    handleKeyDown(event) {
+
+        /*
+         * Enter = Send
+         * Shift + Enter = New line
+         */
+
+        if (
+            event.key === 'Enter' &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
+            this.handleSend();
+        }
+    }
+
 
     async handleSend() {
 
-        const message = this.userMessage.trim();
+        if (this.sendDisabled) {
 
-        if (!message || this.isLoading) {
             return;
         }
 
+
+        const userMessage =
+            this.inputMessage.trim();
+
+
+        if (!userMessage) {
+
+            return;
+        }
+
+
+        if (
+            userMessage.length >
+            MAX_MESSAGE_LENGTH
+        ) {
+
+            this.errorMessage =
+                `Message cannot exceed ${MAX_MESSAGE_LENGTH} characters.`;
+
+            return;
+        }
+
+
         this.errorMessage = '';
 
-        this.addUserMessage(message);
 
-        this.userMessage = '';
+        /*
+         * Add user message immediately.
+         */
+
+        this.addMessage(
+            'user',
+            userMessage
+        );
+
+
+        this.inputMessage = '';
 
         this.isLoading = true;
 
+
         try {
 
-            const response = await processMessage({
-                userMessage: message
-            });
+            const request = {
+                sessionId:
+                    this.sessionId,
 
-            this.handleAgentResponse(response);
+                userMessage:
+                    userMessage
+            };
+
+
+            const response =
+                await processMessage({
+                    request: request
+                });
+
+
+            this.handleAgentResponse(
+                response
+            );
 
         } catch (error) {
 
-            this.handleError(error);
+            this.handleError(
+                error
+            );
 
         } finally {
 
             this.isLoading = false;
-
-            this.scrollToBottom();
         }
     }
 
-    handleKeyDown(event) {
 
-        if (event.key === 'Enter' && !event.shiftKey) {
-
-            event.preventDefault();
-
-            if (!this.sendDisabled) {
-                this.handleSend();
-            }
-        }
-    }
-
-    handleAgentResponse(response) {
+    handleAgentResponse(
+        response
+    ) {
 
         if (!response) {
 
-            this.addAgentMessage(
-                'I did not receive a response from the Agent.'
+            this.errorMessage =
+                'The AI agent returned no response.';
+
+            return;
+        }
+
+
+        if (
+            response.success !== true
+        ) {
+
+            this.errorMessage =
+                response.errorMessage ||
+                'The AI agent could not complete the request.';
+
+
+            this.addMessage(
+                'assistant',
+                'I could not complete that request.'
             );
 
             return;
         }
 
-        if (response.success) {
 
-            this.addAgentMessage(
-                response.message,
-                response
-            );
+        const message =
+            response.message ||
+            'The agent completed the request.';
 
-        } else if (response.approvalRequired) {
 
-            this.addAgentMessage(
-                response.message ||
-                'This action requires approval before it can be executed.',
-                response
-            );
-
-        } else {
-
-            this.addAgentMessage(
-                response.message ||
-                'I could not complete the request.',
-                response
-            );
-        }
+        this.addMessage(
+            'assistant',
+            message,
+            response
+        );
     }
 
-    handleError(error) {
 
-        const message = this.normalizeError(error);
+    handleError(
+        error
+    ) {
 
-        this.errorMessage = message;
+        console.error(
+            'AI Agent error',
+            error
+        );
 
-        this.addAgentMessage(
+
+        let message =
+            'An unexpected error occurred.';
+
+
+        if (
+            error &&
+            error.body &&
+            error.body.message
+        ) {
+
+            message =
+                error.body.message;
+        }
+
+
+        this.errorMessage =
+            message;
+
+
+        this.addMessage(
+            'assistant',
             'I encountered an error while processing your request.'
         );
     }
 
-    normalizeError(error) {
 
-        if (error?.body?.message) {
-            return error.body.message;
-        }
+    addMessage(
+        role,
+        text,
+        response
+    ) {
 
-        if (error?.message) {
-            return error.message;
-        }
+        const message = {
 
-        return 'Unexpected error while contacting the Agent.';
-    }
+            id:
+                `${Date.now()}-${Math.random()}`,
 
-    addUserMessage(message) {
+            role:
+                role,
+
+            text:
+                text,
+
+            isUser:
+                role === 'user',
+
+            isAssistant:
+                role === 'assistant',
+
+            cssClass:
+                role === 'user'
+                    ? 'message-wrapper user-message'
+                    : 'message-wrapper assistant-message',
+
+            intent:
+                response
+                    ? response.intent
+                    : null,
+
+            selectedTool:
+                response
+                    ? response.selectedTool
+                    : null,
+
+            approvalRequired:
+                response
+                    ? response.approvalRequired === true
+                    : false
+        };
+
 
         this.messages = [
             ...this.messages,
-            {
-                id: this.createMessageId(),
-                type: 'user',
-                text: message,
-                isUser: true,
-                isAgent: false
-            }
+            message
         ];
+
+
+        this.scrollToBottom();
     }
 
-    addAgentMessage(message, response = null) {
-
-        this.messages = [
-            ...this.messages,
-            {
-                id: this.createMessageId(),
-                type: 'agent',
-                text: message,
-                isUser: false,
-                isAgent: true,
-
-                intent: response?.intent || null,
-                selectedTool: response?.selectedTool || null,
-                approvalRequired:
-                    response?.approvalRequired || false,
-
-                toolData: response?.toolData || null,
-
-                hasMetadata:
-                    !!response?.intent ||
-                    !!response?.selectedTool,
-
-                hasToolData:
-                    !!response?.toolData
-            }
-        ];
-    }
-
-    createMessageId() {
-
-        return `${Date.now()}-${Math.random()
-            .toString(36)
-            .substring(2, 9)}`;
-    }
 
     clearConversation() {
 
@@ -190,23 +328,47 @@ export default class AiAgentConsole extends LightningElement {
 
         this.errorMessage = '';
 
-        this.userMessage = '';
+        this.sessionId = this.generateSessionId();
 
-        this.addAgentMessage(
-            'Conversation cleared. How can I help you?'
+        this.addMessage(
+            'assistant',
+            'Hello! How can I help you today?'
         );
     }
+    
+    clearError() {
+
+        this.errorMessage = '';
+}
 
     scrollToBottom() {
 
-        window.clearTimeout(this.scrollTimer);
+    window.setTimeout(() => {
 
-        this.scrollTimer = window.setTimeout(() => {
+        const container =
+            this.template.querySelector(
+                '.messages-container'
+            );
+
+
+        if (container) {
+
+            container.scrollTop =
+                container.scrollHeight;
+        }
+
+    }, 0);
+}
+
+    scrollToBottom() {
+
+        window.setTimeout(() => {
 
             const container =
                 this.template.querySelector(
-                    '.chat-container'
+                    '.messages-container'
                 );
+
 
             if (container) {
 
@@ -214,6 +376,7 @@ export default class AiAgentConsole extends LightningElement {
                     container.scrollHeight;
             }
 
-        }, 50);
+        }, 0);
     }
+    
 }

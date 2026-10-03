@@ -1,231 +1,299 @@
 <template>
 
-    <lightning-card
-        title="AI Customer Service Agent"
-        icon-name="utility:einstein">
+    <lightning-card>
 
-        <div class="agent-container">
+        <div
+            class="agent-container"
+        >
 
-            <!-- Header -->
-            <div class="agent-header">
+            <!-- HEADER -->
 
-                <div>
-                    <div class="agent-title">
-                        Customer Service Assistant
+            <div
+                class="agent-header"
+            >
+
+                <div
+                    class="agent-title-area"
+                >
+
+                    <div
+                        class="agent-icon"
+                    >
+                        🤖
                     </div>
 
-                    <div class="agent-subtitle">
-                        Salesforce AI Agent
+
+                    <div>
+
+                        <div
+                            class="agent-title"
+                        >
+                            Customer Service AI Agent
+                        </div>
+
+
+                        <div
+                            class="agent-subtitle"
+                        >
+                            Enterprise AI Assistant
+                        </div>
+
                     </div>
+
                 </div>
 
-                <lightning-button
-                    label="Clear"
-                    title="Clear conversation"
-                    icon-name="utility:refresh"
-                    onclick={clearConversation}>
-                </lightning-button>
+
+                <div
+                    class="session-info"
+                >
+
+                    Session:
+                    {formattedSessionId}
+
+                </div>
 
             </div>
 
 
-            <!-- Chat -->
-            <div
-                class="chat-container"
-                role="log"
-                aria-live="polite">
+            <!-- ERROR -->
 
-                <template
-                    for:each={messages}
-                    for:item="message">
+            <template
+                if:true={hasError}
+            >
 
-                    <!-- USER MESSAGE -->
-
-                    <template if:true={message.isUser}>
-
-                        <div
-                            key={message.id}
-                            class="message-row user-row">
-
-                            <div class="message-bubble user-bubble">
-
-                                <div class="message-label">
-                                    You
-                                </div>
-
-                                <div class="message-text">
-                                    {message.text}
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </template>
-
-
-                    <!-- AGENT MESSAGE -->
-
-                    <template if:true={message.isAgent}>
-
-                        <div
-                            key={message.id}
-                            class="message-row agent-row">
-
-                            <div class="message-bubble agent-bubble">
-
-                                <div class="message-label">
-                                    AI Agent
-                                </div>
-
-                                <div class="message-text">
-                                    {message.text}
-                                </div>
-
-
-                                <!-- Agent Metadata -->
-
-                                <template
-                                    if:true={message.hasMetadata}>
-
-                                    <div class="metadata">
-
-                                        <template
-                                            if:true={message.intent}>
-
-                                            <span class="metadata-item">
-                                                Intent:
-                                                {message.intent}
-                                            </span>
-
-                                        </template>
-
-
-                                        <template
-                                            if:true={message.selectedTool}>
-
-                                            <span class="metadata-item">
-                                                Tool:
-                                                {message.selectedTool}
-                                            </span>
-
-                                        </template>
-
-                                    </div>
-
-                                </template>
-
-
-                                <!-- Approval -->
-
-                                <template
-                                    if:true={message.approvalRequired}>
-
-                                    <div class="approval-box">
-
-                                        <lightning-icon
-                                            icon-name="utility:lock"
-                                            size="x-small"
-                                            alternative-text="Approval required">
-                                        </lightning-icon>
-
-                                        <span>
-                                            Approval required before
-                                            execution.
-                                        </span>
-
-                                    </div>
-
-                                </template>
-
-                            </div>
-
-                        </div>
-
-                    </template>
-
-                </template>
-
-
-                <!-- Loading -->
-
-                <template if:true={isLoading}>
-
-                    <div class="message-row agent-row">
-
-                        <div class="message-bubble agent-bubble">
-
-                            <div class="message-label">
-                                AI Agent
-                            </div>
-
-                            <div class="typing-indicator">
-
-                                <span></span>
-                                <span></span>
-                                <span></span>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </template>
-
-            </div>
-
-
-            <!-- Error -->
-
-            <template if:true={errorMessage}>
-
-                <div class="error-container">
-
-                    <lightning-icon
-                        icon-name="utility:error"
-                        size="x-small"
-                        alternative-text="Error">
-                    </lightning-icon>
+                <div
+                    class="error-banner"
+                >
 
                     <span>
                         {errorMessage}
                     </span>
+
+
+                    <button
+                        class="error-close"
+                        onclick={clearError}
+                        title="Close"
+                    >
+                        ×
+                    </button>
 
                 </div>
 
             </template>
 
 
-            <!-- Input -->
+            <!-- MESSAGES -->
 
-            <div class="input-container">
+            <div
+                class="messages-container"
+            >
 
-                <lightning-textarea
-                    class="message-input"
-                    variant="label-hidden"
-                    value={userMessage}
-                    onchange={handleMessageChange}
-                    onkeydown={handleKeyDown}
-                    placeholder="Ask the Agent...">
-                </lightning-textarea>
+                <template
+                    for:each={messages}
+                    for:item="message"
+                >
+
+                    <div
+                        key={message.id}
+                        class={message.cssClass}
+                    >
+
+                        <div
+                            class="message-avatar"
+                        >
+
+                            <template
+                                if:true={message.isAssistant}
+                            >
+                                🤖
+                            </template>
 
 
-                <lightning-button
-                    variant="brand"
-                    label="Send"
-                    icon-name="utility:send"
-                    icon-position="right"
-                    onclick={handleSend}
-                    disabled={sendDisabled}>
-                </lightning-button>
+                            <template
+                                if:true={message.isUser}
+                            >
+                                👤
+                            </template>
+
+                        </div>
+
+
+                        <div
+                            class="message-content"
+                        >
+
+                            <div
+                                class="message-role"
+                            >
+
+                                <template
+                                    if:true={message.isAssistant}
+                                >
+                                    AI Agent
+                                </template>
+
+
+                                <template
+                                    if:true={message.isUser}
+                                >
+                                    You
+                                </template>
+
+                            </div>
+
+
+                            <div
+                                class="message-bubble"
+                            >
+
+                                {message.text}
+
+                            </div>
+
+
+                            <!-- TOOL METADATA -->
+
+                            <template
+                                if:true={message.selectedTool}
+                            >
+
+                                <div
+                                    class="tool-info"
+                                >
+
+                                    Tool:
+                                    {message.selectedTool}
+
+                                </div>
+
+                            </template>
+
+
+                            <!-- APPROVAL -->
+
+                            <template
+                                if:true={message.approvalRequired}
+                            >
+
+                                <div
+                                    class="approval-banner"
+                                >
+
+                                    Approval required
+                                    before this operation
+                                    can be executed.
+
+                                </div>
+
+                            </template>
+
+                        </div>
+
+                    </div>
+
+                </template>
+
+
+                <!-- LOADING -->
+
+                <template
+                    if:true={isLoading}
+                >
+
+                    <div
+                        class="message-wrapper assistant-message"
+                    >
+
+                        <div
+                            class="message-avatar"
+                        >
+                            🤖
+                        </div>
+
+
+                        <div
+                            class="message-content"
+                        >
+
+                            <div
+                                class="message-role"
+                            >
+                                AI Agent
+                            </div>
+
+
+                            <div
+                                class="message-bubble typing"
+                            >
+
+                                <span>●</span>
+                                <span>●</span>
+                                <span>●</span>
+
+                                <span
+                                    class="typing-text"
+                                >
+                                    Processing...
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </template>
 
             </div>
 
 
-            <div class="input-help">
+            <!-- INPUT -->
 
-                Press Enter to send. Use Shift + Enter for a new line.
+            <div
+                class="input-area"
+            >
+
+                <textarea
+                    class="message-input"
+                    placeholder="Type your message..."
+                    value={inputMessage}
+                    oninput={handleInput}
+                    onkeydown={handleKeyDown}
+                    disabled={isLoading}
+                    maxlength="4000"
+                ></textarea>
+
+
+                <button
+                    class="send-button"
+                    onclick={handleSend}
+                    disabled={sendDisabled}
+                >
+                    Send
+                </button>
+
+            </div>
+
+
+            <!-- FOOTER -->
+
+            <div
+                class="agent-footer"
+            >
+
+                <span>
+                    Enter to send • Shift+Enter for new line
+                </span>
+
+
+                <button
+                    class="clear-button"
+                    onclick={clearConversation}
+                    disabled={isLoading}
+                >
+                    Clear
+                </button>
 
             </div>
 
