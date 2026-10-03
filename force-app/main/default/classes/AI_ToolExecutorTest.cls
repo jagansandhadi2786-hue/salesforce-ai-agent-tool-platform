@@ -480,71 +480,69 @@ private class AI_ToolExecutorTest {
 
 
     /*
-     * =========================================================
-     * 10. get_order_status
-     * =========================================================
+ * =========================================================
+ * 10. get_order_status
+ * =========================================================
+ */
+@IsTest
+static void testGetOrderStatusEndToEnd() {
+
+    /*
+     * Use the shared HTTP mock.
+     *
+     * Do NOT use:
+     * AI_OrderApiServiceTest.OrderApiMock
+     *
+     * OrderApiMock is an inner class of another test class
+     * and is not visible here.
      */
-    @IsTest
-    static void testGetOrderStatusEndToEnd() {
+    AI_OrderApiHttpMock mock =
+        new AI_OrderApiHttpMock();
 
-        /*
-         * Use the shared HTTP mock.
-         *
-         * Do NOT use:
-         * AI_OrderApiServiceTest.OrderApiMock
-         *
-         * OrderApiMock is an inner class of another test class
-         * and is not visible here.
-         */
-        AI_OrderApiHttpMock mock =
-            new AI_OrderApiHttpMock();
+    mock.responseStatusCode = 200;
 
-        mock.responseStatusCode = 200;
+    mock.responseBody =
+        '{' +
+        '"orderNumber":"ORD-1001",' +
+        '"status":"SHIPPED",' +
+        '"message":"Order has been shipped.",' +
+        '"estimatedDelivery":"2026-10-08",' +
+        '"trackingNumber":"TRK123456789"' +
+        '}';
 
-        mock.responseBody =
-            '{' +
-            '"orderNumber":"ORD-1001",' +
-            '"status":"SHIPPED",' +
-            '"message":"Order has been shipped.",' +
-            '"estimatedDelivery":"2026-10-08",' +
-            '"trackingNumber":"TRK123456789"' +
-            '}';
+    Test.setMock(
+        HttpCalloutMock.class,
+        mock
+    );
 
-        Test.setMock(
-            HttpCalloutMock.class,
-            mock
+    AI_ToolRequest request =
+        new AI_ToolRequest(
+            'get_order_status',
+            new Map<String, Object>{
+                'order_number' => 'ORD-1001'
+            }
         );
 
-        AI_ToolRequest request =
-            new AI_ToolRequest(
-                'get_order_status',
-                new Map<String, Object>{
-                    'orderNumber' => 'ORD-1001'
-                }
-            );
+    Test.startTest();
 
-        Test.startTest();
+    AI_ToolResponse response =
+        AI_ToolExecutor.execute(request);
 
-        AI_ToolResponse response =
-            AI_ToolExecutor.execute(request);
+    Test.stopTest();
 
-        Test.stopTest();
+    System.assertEquals(
+        true,
+        response.success,
+        'get_order_status failed. Message: ' +
+        response.message
+    );
 
-        System.assertEquals(
-            true,
-            response.success,
-            'get_order_status failed. Message: ' +
-            response.message
-        );
-
-        System.assertNotEquals(
-            null,
-            response.message,
-            'get_order_status should return a response message.'
-        );
-    }
-
-
+    System.assertNotEquals(
+        null,
+        response.message,
+        'get_order_status should return a response message.'
+    );
+}
     /*
      * =========================================================
      * 11. Invalid request

@@ -1,7 +1,9 @@
 public with sharing class AI_ToolAuthorization {
 
     /*
-     * Tool Authorization Layer
+     * ============================================================
+     * AI TOOL AUTHORIZATION
+     * ============================================================
      *
      * Security Flow:
      *
@@ -25,15 +27,27 @@ public with sharing class AI_ToolAuthorization {
      *     v
      * Controlled Execution
      *
-     * Authorization fails closed.
+     * Authorization always fails closed.
+     *
+     * IMPORTANT:
+     *
+     * The LLM is never trusted to authorize itself.
+     * The LLM cannot supply an Apex class, method,
+     * endpoint, or implementation.
      */
 
 
-    /**
-     * Authorize the registered tool.
+    /*
+     * ============================================================
+     * BACKWARD-COMPATIBLE AUTHORIZATION API
+     * ============================================================
      *
-     * The current user is established by the
-     * Salesforce execution context.
+     * Existing callers use:
+     *
+     * AI_ToolAuthorization.authorize(tool);
+     *
+     * Keep this method because multiple existing classes depend
+     * on this contract.
      */
     public static void authorize(
         AI_Tool__c tool
@@ -64,128 +78,183 @@ public with sharing class AI_ToolAuthorization {
 
 
         /*
-         * The authorization policy is explicitly
-         * controlled by Apex.
-         *
-         * The AI cannot supply an arbitrary class,
-         * method, or Apex implementation.
+         * Delegate to the centralized authorization policy.
          */
-        switch on tool.Tool_API_Name__c {
+        if (!isAuthorized(tool.Tool_API_Name__c)) {
+
+            throw new AI_ServiceException(
+                'Tool is not authorized.'
+            );
+        }
+    }
+
+
+    /*
+     * ============================================================
+     * TOOL-NAME AUTHORIZATION
+     * ============================================================
+     *
+     * This method provides the explicit Apex allowlist.
+     *
+     * Unknown tools ALWAYS return false.
+     */
+    public static Boolean isAuthorized(
+        String toolName
+    ) {
+
+        if (String.isBlank(toolName)) {
+            return false;
+        }
+
+
+        /*
+         * Establish the Salesforce execution context.
+         */
+        if (UserInfo.getUserId() == null) {
+            return false;
+        }
+
+
+        /*
+         * Explicit allowlist.
+         *
+         * The LLM cannot dynamically introduce a new tool.
+         */
+        switch on toolName {
+
+            /*
+             * ====================================================
+             * READ TOOLS
+             * ====================================================
+             */
 
             when 'search_customer' {
 
-                authorizeReadOperation();
+                return authorizeReadOperation();
             }
 
 
             when 'get_customer_details' {
 
-                authorizeReadOperation();
+                return authorizeReadOperation();
             }
 
 
             when 'get_open_cases' {
 
-                authorizeReadOperation();
+                return authorizeReadOperation();
             }
 
 
             when 'get_case_details' {
 
-                authorizeReadOperation();
-            }
-
-
-            when 'create_case' {
-
-                authorizeCreateOperation();
-            }
-
-
-            when 'update_case' {
-
-                authorizeUpdateOperation();
-            }
-
-
-            when 'create_task' {
-
-                authorizeCreateOperation();
-            }
-
-
-            when 'escalate_case' {
-
-                authorizeUpdateOperation();
+                return authorizeReadOperation();
             }
 
 
             when 'search_knowledge' {
 
-                authorizeReadOperation();
+                return authorizeReadOperation();
             }
 
 
             when 'get_order_status' {
 
-                authorizeReadOperation();
+                return authorizeReadOperation();
             }
 
+
+            /*
+             * ====================================================
+             * CREATE TOOLS
+             * ====================================================
+             */
+
+            when 'create_case' {
+
+                return authorizeCreateOperation();
+            }
+
+
+            when 'create_task' {
+
+                return authorizeCreateOperation();
+            }
+
+
+            /*
+             * ====================================================
+             * UPDATE TOOLS
+             * ====================================================
+             */
+
+            when 'update_case' {
+
+                return authorizeUpdateOperation();
+            }
+
+
+            when 'escalate_case' {
+
+                return authorizeUpdateOperation();
+            }
+
+
+            /*
+             * ====================================================
+             * UNKNOWN TOOL
+             * ====================================================
+             *
+             * FAIL CLOSED
+             * ====================================================
+             */
 
             when else {
 
-                throw new AI_ServiceException(
-                    'Tool authorization is not configured.'
-                );
+                return false;
             }
         }
     }
 
 
-    /**
-     * Authorization for read-only tools.
+    /*
+     * ============================================================
+     * READ AUTHORIZATION
+     * ============================================================
      *
-     * Record-level access is subsequently enforced
-     * by Salesforce sharing and USER_MODE queries.
+     * Record-level access is enforced separately by:
+     *
+     * - with sharing
+     * - USER_MODE queries
+     * - CRUD/FLS
      */
-    private static void authorizeReadOperation() {
+    private static Boolean authorizeReadOperation() {
 
-        if (UserInfo.getUserId() == null) {
-
-            throw new AI_ServiceException(
-                'Unable to establish current user.'
-            );
-        }
+        return UserInfo.getUserId() != null;
     }
 
 
-    /**
-     * Authorization for create operations.
+    /*
+     * ============================================================
+     * CREATE AUTHORIZATION
+     * ============================================================
      *
-     * CRUD/FLS enforcement remains in the service
-     * layer and Salesforce USER_MODE/DML AS USER.
+     * CRUD/FLS and business authorization remain in the
+     * service/execution layer.
      */
-    private static void authorizeCreateOperation() {
+    private static Boolean authorizeCreateOperation() {
 
-        if (UserInfo.getUserId() == null) {
-
-            throw new AI_ServiceException(
-                'Unable to establish current user.'
-            );
-        }
+        return UserInfo.getUserId() != null;
     }
 
 
-    /**
-     * Authorization for update operations.
+    /*
+     * ============================================================
+     * UPDATE AUTHORIZATION
+     * ============================================================
      */
-    private static void authorizeUpdateOperation() {
+    private static Boolean authorizeUpdateOperation() {
 
-        if (UserInfo.getUserId() == null) {
-
-            throw new AI_ServiceException(
-                'Unable to establish current user.'
-            );
-        }
+        return UserInfo.getUserId() != null;
     }
 }
