@@ -1,0 +1,16 @@
+[
+  {
+    "question": "What is our refund policy?",
+    "expectedSource": "Refund Policy",
+    "expectedAnswerContains": [
+      "30 days"
+    ]
+  },
+  {
+    "question": "What is the SLA for priority cases?",
+    "expectedSource": "Priority SLA",
+    "expectedAnswerContains": [
+      "4 hours"
+    ]
+  }
+]
