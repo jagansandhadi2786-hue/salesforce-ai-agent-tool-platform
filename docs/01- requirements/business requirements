@@ -1,0 +1,712 @@
+# Salesforce AI Tool — Business Requirements
+
+## 1. Document Purpose
+
+This document defines the business requirements for the **Salesforce Enterprise AI Tool & Customer Service Assistant**.
+
+The solution enables Salesforce customer-service users to use natural language to retrieve information, analyze Cases, search enterprise knowledge, receive AI recommendations, and perform approved business actions.
+
+---
+
+# 2. Business Background
+
+Customer-service teams typically spend significant time reviewing Salesforce records, searching Knowledge Articles, analyzing customer history, and preparing responses.
+
+The AI Tool provides a centralized assistant within Salesforce that combines:
+
+- Salesforce CRM data
+- Generative AI
+- AI tools
+- RAG
+- Enterprise knowledge
+- External APIs
+- Salesforce automation
+
+The objective is to improve agent productivity while maintaining Salesforce security, governance, auditability, and human oversight.
+
+---
+
+# 3. Business Problem
+
+Current customer-service processes may require agents to manually:
+
+1. Open a Case.
+2. Read the complete Case history.
+3. Review customer information.
+4. Search previous Cases.
+5. Search Knowledge Articles.
+6. Check order information.
+7. Determine Case priority.
+8. Draft a customer response.
+9. Decide whether escalation is required.
+10. Update Salesforce records.
+
+This creates:
+
+- Longer Case resolution time.
+- Increased manual effort.
+- Inconsistent Case classification.
+- Inconsistent customer responses.
+- Difficulty finding relevant knowledge.
+- Excessive context switching.
+- Increased operational cost.
+
+---
+
+# 4. Business Objectives
+
+## BR-001 — Reduce Agent Effort
+
+Provide an AI assistant that reduces repetitive manual activities.
+
+## BR-002 — Improve Case Resolution
+
+Provide relevant Case summaries, customer history, Knowledge Articles, and recommendations.
+
+## BR-003 — Improve Response Quality
+
+Generate context-aware response drafts that agents can review before sending.
+
+## BR-004 — Improve Case Classification
+
+Provide AI recommendations for:
+
+- Category
+- Subcategory
+- Priority
+- Sentiment
+- Routing
+
+## BR-005 — Improve Knowledge Discovery
+
+Automatically retrieve relevant enterprise Knowledge Articles.
+
+## BR-006 — Maintain Security
+
+Ensure AI operations respect Salesforce permissions and enterprise security policies.
+
+## BR-007 — Maintain Human Oversight
+
+Prevent high-impact business actions from occurring without appropriate authorization or confirmation.
+
+## BR-008 — Provide Auditability
+
+Maintain sufficient records to understand:
+
+- What the user requested.
+- Which AI tool was selected.
+- What data was accessed.
+- What recommendation was produced.
+- What action was executed.
+
+---
+
+# 5. Stakeholders
+
+| Stakeholder | Responsibility |
+|---|---|
+| Customer Service Agent | Uses AI assistant |
+| Customer Service Manager | Reviews AI recommendations and operational performance |
+| Salesforce Administrator | Configuration and access management |
+| Salesforce Developer | Development and maintenance |
+| AI Engineer | AI, prompts, RAG and tool orchestration |
+| Integration Developer | External API integration |
+| QA/SDET | Functional, API, integration and AI testing |
+| Security Team | Security and compliance |
+| DevOps Team | CI/CD and deployment |
+| Product Owner | Business requirements and prioritization |
+
+---
+
+# 6. User Personas
+
+## 6.1 Customer Service Agent
+
+The primary user.
+
+Needs to:
+
+- Understand Cases quickly.
+- Find customer information.
+- Search knowledge.
+- Generate responses.
+- Receive next-best-action recommendations.
+
+---
+
+## 6.2 Customer Service Manager
+
+Needs to:
+
+- Review difficult Cases.
+- Monitor escalations.
+- Analyze AI recommendations.
+- Monitor service performance.
+
+---
+
+## 6.3 Salesforce Administrator
+
+Needs to:
+
+- Configure AI features.
+- Manage permissions.
+- Configure tools.
+- Control feature access.
+
+---
+
+# 7. Functional Requirements
+
+## FR-001 — AI Assistant
+
+The system shall provide an AI assistant accessible from Salesforce.
+
+Example:
+
+```text
+Agent:
+"Summarize this Case."
+```
+
+The assistant shall return a concise Case summary.
+
+---
+
+## FR-002 — Case Summary
+
+The system shall retrieve relevant Case information and generate a summary.
+
+The summary may include:
+
+- Customer issue.
+- Case history.
+- Previous interactions.
+- Current status.
+- Relevant actions.
+- Recommended next step.
+
+---
+
+## FR-003 — Case Classification
+
+The system shall provide AI recommendations for:
+
+```text
+Category
+Subcategory
+Priority
+Sentiment
+Routing
+```
+
+---
+
+## FR-004 — Sentiment Analysis
+
+The system shall analyze customer communication and classify sentiment.
+
+Supported values:
+
+```text
+Positive
+Neutral
+Negative
+Critical
+```
+
+---
+
+## FR-005 — Customer Profile
+
+The assistant shall retrieve authorized customer information.
+
+Potential information:
+
+- Account.
+- Contact.
+- Customer segment.
+- Active Cases.
+- Previous Cases.
+- Orders.
+- Assets.
+
+---
+
+## FR-006 — Case History
+
+The assistant shall retrieve relevant historical Cases for an authorized customer.
+
+---
+
+## FR-007 — Knowledge Search
+
+The assistant shall search approved enterprise Knowledge sources.
+
+---
+
+## FR-008 — Knowledge Recommendation
+
+The assistant shall recommend relevant Knowledge Articles based on Case context.
+
+Each recommendation should provide:
+
+- Article title.
+- Relevance score where available.
+- Short explanation.
+- Reference/link.
+
+---
+
+## FR-009 — Response Generation
+
+The system shall generate a draft response using approved context.
+
+The response should consider:
+
+- Customer issue.
+- Case details.
+- Relevant knowledge.
+- Business rules.
+- Communication tone.
+
+---
+
+## FR-010 — Human Review
+
+AI-generated customer responses shall be presented for agent review before sending.
+
+Possible actions:
+
+```text
+Approve
+Edit
+Reject
+Regenerate
+```
+
+---
+
+## FR-011 — Order Status
+
+Where an approved external integration is available, the assistant shall retrieve order information.
+
+Example:
+
+```text
+Agent:
+"What's the status of order 100012?"
+
+AI:
+"Order 100012 was shipped on October 3 and is
+currently in transit."
+```
+
+---
+
+## FR-012 — Follow-Up Task
+
+The system may create a Salesforce Task after authorization.
+
+---
+
+## FR-013 — Case Escalation
+
+The system may recommend escalation based on business rules and AI analysis.
+
+Actual escalation shall require the appropriate authorization.
+
+---
+
+# 8. AI Tool Requirements
+
+The AI Tool Catalog shall provide controlled tool definitions.
+
+Initial tools:
+
+```text
+getCustomerProfile
+getCustomerCases
+getCaseDetails
+summarizeCase
+classifyCase
+analyzeSentiment
+searchKnowledge
+recommendKnowledge
+generateCustomerResponse
+getOrderStatus
+createFollowUpTask
+escalateCase
+```
+
+Each tool shall define:
+
+```text
+Tool Name
+Description
+Input Schema
+Output Schema
+Required Parameters
+Allowed Values
+Authorization
+Execution Method
+Error Handling
+```
+
+---
+
+# 9. Tool Execution Requirements
+
+The system shall not allow unrestricted AI-generated code or arbitrary Salesforce operations.
+
+Tool execution shall follow:
+
+```text
+User Request
+    ↓
+Intent Detection
+    ↓
+Tool Selection
+    ↓
+Tool Validation
+    ↓
+Parameter Validation
+    ↓
+Authorization
+    ↓
+Execution
+    ↓
+Output Validation
+    ↓
+Response
+```
+
+---
+
+# 10. RAG Requirements
+
+The system shall support Retrieval-Augmented Generation for enterprise knowledge.
+
+RAG sources may include:
+
+- Salesforce Knowledge.
+- Product documentation.
+- FAQs.
+- Support documentation.
+- Approved internal documents.
+
+The system shall prioritize trusted sources.
+
+AI responses should be grounded in retrieved context where applicable.
+
+---
+
+# 11. Security Requirements
+
+## SEC-001 — Authentication
+
+Only authenticated Salesforce users shall access the AI Tool.
+
+## SEC-002 — Authorization
+
+Tool execution shall verify user permissions.
+
+## SEC-003 — CRUD/FLS
+
+Salesforce object and field permissions shall be respected.
+
+## SEC-004 — Record-Level Security
+
+The system shall respect Salesforce sharing and record visibility.
+
+## SEC-005 — External Authentication
+
+External APIs shall use secure authentication mechanisms.
+
+## SEC-006 — Secret Management
+
+Secrets shall not be hard-coded.
+
+## SEC-007 — Sensitive Data
+
+Sensitive information shall not be unnecessarily exposed to the AI model or application logs.
+
+---
+
+# 12. Non-Functional Requirements
+
+## NFR-001 — Performance
+
+Normal AI interactions should provide a responsive user experience.
+
+Performance targets should be finalized during implementation and measured separately for:
+
+- Salesforce retrieval.
+- RAG retrieval.
+- AI model processing.
+- External API calls.
+- Total response time.
+
+---
+
+## NFR-002 — Availability
+
+The solution should be designed to tolerate temporary failures of dependent services.
+
+---
+
+## NFR-003 — Scalability
+
+The architecture shall support increasing:
+
+- Users.
+- Cases.
+- AI requests.
+- Tool executions.
+- Knowledge documents.
+
+---
+
+## NFR-004 — Maintainability
+
+Business configuration should be externalized where appropriate using Salesforce metadata.
+
+---
+
+## NFR-005 — Observability
+
+The solution shall provide monitoring and logging for:
+
+- AI requests.
+- Tool execution.
+- Errors.
+- Integration failures.
+- Performance.
+
+---
+
+## NFR-006 — Auditability
+
+Important AI-assisted actions shall be traceable.
+
+---
+
+# 13. Business Rules
+
+## BRULE-001
+
+AI recommendations shall not automatically override Salesforce business rules.
+
+## BRULE-002
+
+AI-generated customer communication shall require human review where configured by the business.
+
+## BRULE-003
+
+Users shall only access information they are authorized to access.
+
+## BRULE-004
+
+Only registered tools in the Tool Catalog may be executed.
+
+## BRULE-005
+
+Tool parameters shall be validated before execution.
+
+## BRULE-006
+
+High-risk operations shall require explicit confirmation or additional authorization.
+
+---
+
+# 14. Example Business Scenario
+
+### Input
+
+```text
+Customer:
+I have tried to make my payment three times and
+it still fails. I already contacted support twice.
+```
+
+### Expected AI Processing
+
+```text
+Analyze Case
+     ↓
+Analyze Sentiment
+     ↓
+Classify Issue
+     ↓
+Retrieve Customer History
+     ↓
+Search Knowledge
+     ↓
+Recommend Action
+     ↓
+Generate Response
+```
+
+### Expected Recommendation
+
+```text
+Category: Payment
+Priority: High
+Sentiment: Negative
+Escalation: Recommended
+Knowledge: Payment Processing Troubleshooting
+```
+
+The agent reviews the recommendation before any Case update.
+
+---
+
+# 15. Acceptance Criteria
+
+## AC-001
+
+Given an authorized user has opened a Case,
+
+when the user asks for a Case summary,
+
+then the AI Tool shall return a summary based on accessible Case information.
+
+## AC-002
+
+Given a Case contains customer communication,
+
+when sentiment analysis is requested,
+
+then the system shall return an appropriate sentiment classification.
+
+## AC-003
+
+Given relevant Knowledge exists,
+
+when the user requests recommendations,
+
+then the system shall return relevant approved Knowledge Articles.
+
+## AC-004
+
+Given a user requests an unauthorized operation,
+
+then the system shall prevent the operation.
+
+## AC-005
+
+Given the AI recommends a Case update,
+
+then the system shall not automatically perform the update unless the configured authorization policy permits it.
+
+## AC-006
+
+Given an external API fails,
+
+then the system shall return a controlled error and record the failure for monitoring.
+
+---
+
+# 16. Success Metrics
+
+The following metrics should be measured during the pilot:
+
+| Metric | Objective |
+|---|---|
+| Case summarization time | Reduce manual effort |
+| Knowledge search time | Improve discovery |
+| Average handling time | Reduce where AI is effective |
+| First-contact resolution | Improve where applicable |
+| AI recommendation acceptance | Measure usefulness |
+| AI response quality | Measure output quality |
+| Tool-selection accuracy | Measure orchestration quality |
+| RAG relevance | Measure retrieval quality |
+| AI error rate | Maintain reliability |
+| Unauthorized action rate | Target zero |
+
+---
+
+# 17. MVP Scope
+
+The initial MVP shall include:
+
+```text
+1. Salesforce AI Assistant LWC
+2. Case Summary
+3. Case Classification
+4. Sentiment Analysis
+5. Customer History
+6. Knowledge Search
+7. Knowledge Recommendation
+8. Suggested Response
+9. AI Tool Catalog
+10. Tool Parameter Validation
+11. Salesforce Security
+12. Error Handling
+13. Logging
+14. Apex Unit Tests
+15. LWC Tests
+```
+
+---
+
+# 18. Future Scope
+
+Potential future capabilities:
+
+- Voice-based customer-service assistant.
+- Multi-agent orchestration.
+- Advanced Agentforce integration.
+- Automated Case routing.
+- Predictive Case escalation.
+- Customer churn prediction.
+- Next-best-action engine.
+- Automated workflow execution.
+- Multi-language support.
+- Advanced AI evaluation framework.
+- Model routing.
+- AI cost optimization.
+
+---
+
+# 19. Business Requirement Traceability
+
+```text
+Business Problem
+      ↓
+Business Objective
+      ↓
+Functional Requirement
+      ↓
+Technical Design
+      ↓
+Implementation
+      ↓
+Test Case
+      ↓
+Deployment
+      ↓
+Production Monitoring
+```
+
+Every critical requirement should be traceable through the software development lifecycle.
+
+---
+
+# 20. Definition of Done
+
+The MVP is considered complete when:
+
+- [ ] Business requirements are implemented.
+- [ ] AI Assistant is available in Salesforce.
+- [ ] AI tools are registered and validated.
+- [ ] Case analysis works.
+- [ ] RAG retrieval works.
+- [ ] Security controls are implemented.
+- [ ] Integration handling is implemented.
+- [ ] Unit tests pass.
+- [ ] Integration tests pass.
+- [ ] Security testing passes.
+- [ ] CI/CD pipeline passes.
+- [ ] Documentation is complete.
+- [ ] Production-support procedures are documented.
