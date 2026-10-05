@@ -32,11 +32,20 @@ on:
       - develop
       - main
 
+  workflow_dispatch:
+
 jobs:
 
   quality:
     name: Quality and Security
     runs-on: ubuntu-latest
+
+    # --------------------------------------------------------
+    # Salesforce authentication secret
+    # --------------------------------------------------------
+
+    env:
+      SF_AUTH_URL: ${{ secrets.SFDX_AUTH_URL }}
 
     steps:
 
@@ -47,6 +56,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+
       # ======================================================
       # Stage 2 - Setup Node.js
       # ======================================================
@@ -55,7 +65,8 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '24'
-          # cache: npm
+          # npm cache intentionally disabled because the
+          # repository does not currently contain a lock file.
 
 
       # ======================================================
@@ -64,7 +75,11 @@ jobs:
 
       - name: Install Salesforce CLI
         run: |
+          set -e
+
           npm install --global @salesforce/cli
+
+          echo "Salesforce CLI installation completed."
 
 
       # ======================================================
@@ -73,16 +88,40 @@ jobs:
 
       - name: Verify Salesforce CLI
         run: |
+          set -e
+
           sf --version
+          sf plugins
 
 
       # ======================================================
       # Stage 5 - Verify Salesforce Project
       # ======================================================
 
-      - name: Verify project
+      - name: Verify Salesforce project
         run: |
-          sf project list
+          set -e
+
+          echo "Checking Salesforce DX project..."
+
+          if [ ! -f "sfdx-project.json" ]; then
+            echo "ERROR: sfdx-project.json was not found."
+            echo "Current directory:"
+            pwd
+            echo "Repository contents:"
+            ls -la
+            exit 1
+          fi
+
+          echo "sfdx-project.json found."
+
+          if [ ! -d "force-app" ]; then
+            echo "ERROR: force-app directory was not found."
+            exit 1
+          fi
+
+          echo "force-app directory found."
+          echo "Salesforce project structure looks valid."
 
 
       # ======================================================
@@ -91,7 +130,13 @@ jobs:
 
       - name: Check Git diff
         run: |
+          set -e
+
+          echo "Checking Git whitespace errors..."
+
           git diff --check
+
+          echo "Git validation completed."
 
 
       # ======================================================
@@ -99,8 +144,13 @@ jobs:
       # ======================================================
 
       - name: Secret scan
+        shell: bash
         run: |
-          ! git grep -n -i \
+          set -e
+
+          echo "Scanning repository for potential secrets..."
+
+          if git grep -n -i \
             -e "api_key" \
             -e "apikey" \
             -e "client_secret" \
@@ -108,7 +158,15 @@ jobs:
             -e "password" \
             -e "Bearer " \
             -e "salesforce-token" \
-            -e "azure-api-key"
+            -e "azure-api-key"; then
+
+            echo ""
+            echo "ERROR: Potential secret detected in repository."
+            exit 1
+          fi
+
+          echo "Secret scan completed successfully."
+
 
       # ======================================================
       # Stage 8 - Salesforce Code Analyzer
@@ -116,11 +174,15 @@ jobs:
 
       - name: Salesforce Code Analyzer
         run: |
-          sf code-analyzer run --target force-app
+          set -e
 
-      # NOTE:
-      # Verify the exact Code Analyzer command/options against
-      # the installed CLI/plugin version used in CI.
+          echo "Running Salesforce Code Analyzer..."
+
+          sf code-analyzer run \
+            --target force-app \
+            --output-file test-results-code-analyzer.html
+
+          echo "Salesforce Code Analyzer completed."
 
 
       # ======================================================
@@ -128,14 +190,40 @@ jobs:
       # ======================================================
 
       - name: Authenticate Salesforce
+        if: ${{ env.SF_AUTH_URL != '' }}
+        shell: bash
         run: |
-          echo "${{ secrets.SFDX_AUTH_URL }}" > sfdx-auth-url.txt
+          set -e
+
+          echo "Authenticating to Salesforce..."
+
+          printf '%s' "$SF_AUTH_URL" > sfdx-auth-url.txt
 
           sf org login sfdx-url \
             --sfdx-url-file sfdx-auth-url.txt \
-            --alias ci-org
+            --alias ci-org \
+            --set-default
 
           rm -f sfdx-auth-url.txt
+
+          echo "Salesforce authentication completed."
+
+
+      # ======================================================
+      # Stage 9A - Verify Salesforce Authentication
+      # ======================================================
+
+      - name: Verify Salesforce authentication
+        if: ${{ env.SF_AUTH_URL != '' }}
+        run: |
+          set -e
+
+          echo "Verifying Salesforce authentication..."
+
+          sf org display \
+            --target-org ci-org
+
+          echo "Salesforce authentication verified."
 
 
       # ======================================================
@@ -143,13 +231,22 @@ jobs:
       # ======================================================
 
       - name: Run Apex tests
+        if: ${{ env.SF_AUTH_URL != '' }}
         run: |
+          set -e
+
+          echo "Running Apex test suite..."
+
+          mkdir -p test-results
+
           sf apex run test \
             --target-org ci-org \
             --test-level RunLocalTests \
             --result-format junit \
             --output-dir test-results \
             --wait 30
+
+          echo "Apex tests completed successfully."
 
 
       # ======================================================
@@ -161,7 +258,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: test-results/
+          path: |
+            test-results/
+            test-results-code-analyzer.html
           if-no-files-found: warn
 
 
@@ -170,7 +269,12 @@ jobs:
       # ======================================================
 
       - name: Security regression tests
+        if: ${{ env.SF_AUTH_URL != '' }}
         run: |
+          set -e
+
+          echo "Running security regression tests..."
+
           sf apex run test \
             --target-org ci-org \
             --tests AI_ToolSecurityTest \
@@ -179,13 +283,20 @@ jobs:
             --result-format human \
             --wait 30
 
+          echo "Security regression tests completed."
+
 
       # ======================================================
       # Stage 13 - AI Tool Calling Tests
       # ======================================================
 
       - name: AI tool calling tests
+        if: ${{ env.SF_AUTH_URL != '' }}
         run: |
+          set -e
+
+          echo "Running AI tool calling tests..."
+
           sf apex run test \
             --target-org ci-org \
             --tests AI_AgentAzureOpenAIServiceTest \
@@ -194,6 +305,8 @@ jobs:
             --result-format human \
             --wait 30
 
+          echo "AI tool calling tests completed."
+
 
       # ======================================================
       # Stage 14 - RAG Evaluation
@@ -201,8 +314,10 @@ jobs:
 
       - name: RAG evaluation
         run: |
+          set -e
+
           echo "RAG evaluation stage"
-          echo "RAG evaluation will be enabled when RAG test suite is available."
+          echo "RAG evaluation will be enabled when the RAG test suite is available."
 
 
       # ======================================================
@@ -210,8 +325,15 @@ jobs:
       # ======================================================
 
       - name: Deployment validation
+        if: ${{ env.SF_AUTH_URL != '' }}
         run: |
+          set -e
+
+          echo "Validating Salesforce deployment..."
+
           sf project deploy validate \
             --source-dir force-app/main/default \
             --target-org ci-org \
             --wait 30
+
+          echo "Salesforce deployment validation completed."
