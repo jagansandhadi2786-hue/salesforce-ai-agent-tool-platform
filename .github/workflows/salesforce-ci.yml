@@ -51,11 +51,11 @@ jobs:
       # Stage 2 - Setup Node.js
       # ======================================================
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: '24'
-          cache: npm
+          # cache: npm
 
 
       # ======================================================
