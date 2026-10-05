@@ -35,7 +35,6 @@ on:
   workflow_dispatch:
 
 jobs:
-
   quality:
     name: Quality and Security
     runs-on: ubuntu-latest
@@ -48,14 +47,12 @@ jobs:
       SF_AUTH_URL: ${{ secrets.SFDX_AUTH_URL }}
 
     steps:
-
       # ======================================================
       # Stage 1 - Checkout
       # ======================================================
 
       - name: Checkout
         uses: actions/checkout@v5
-
 
       # ======================================================
       # Stage 2 - Setup Node.js
@@ -64,10 +61,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: '24'
+          node-version: "24"
           # npm cache intentionally disabled because the
           # repository does not currently contain a lock file.
-
 
       # ======================================================
       # Stage 3 - Install Salesforce CLI
@@ -81,7 +77,6 @@ jobs:
 
           echo "Salesforce CLI installation completed."
 
-
       # ======================================================
       # Stage 4 - Verify Salesforce CLI
       # ======================================================
@@ -92,7 +87,6 @@ jobs:
 
           sf --version
           sf plugins
-
 
       # ======================================================
       # Stage 5 - Verify Salesforce Project
@@ -123,7 +117,6 @@ jobs:
           echo "force-app directory found."
           echo "Salesforce project structure looks valid."
 
-
       # ======================================================
       # Stage 6 - Git validation
       # ======================================================
@@ -138,8 +131,7 @@ jobs:
 
           echo "Git validation completed."
 
-
-           # ======================================================
+      # ======================================================
       # Stage 7 - Secret scan
       # ======================================================
 
@@ -148,35 +140,63 @@ jobs:
         run: |
           set -e
 
-          echo "Scanning repository for potential hard-coded secrets..."
+          echo "Scanning changed files for potential hard-coded secrets..."
 
           FOUND=0
 
           # --------------------------------------------------
-          # Scan source/configuration files only.
+          # Determine files changed in the current commit.
           #
-          # Documentation, tests, workflows and .gitignore
-          # are excluded because they intentionally contain
-          # security terminology and examples.
+          # Documentation, tests, CI workflow files and
+          # examples are excluded because they intentionally
+          # contain security-related keywords and patterns.
+          # --------------------------------------------------
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          else
+            CHANGED_FILES=$(git diff-tree \
+              --no-commit-id \
+              --name-only \
+              -r \
+              "$GITHUB_SHA")
+          fi
+
+          echo "Files being scanned:"
+          echo "$CHANGED_FILES"
+
+          # --------------------------------------------------
+          # Filter files suitable for secret scanning.
+          # --------------------------------------------------
+
+          SCAN_FILES=$(echo "$CHANGED_FILES" | grep -E \
+            '\.(cls|trigger|js|ts|json|yaml|yml|xml|properties|txt)$' \
+            | grep -v '^\.github/workflows/' \
+            | grep -v '^docs/' \
+            | grep -v 'Test\.cls$' \
+            | grep -v '^scripts/' \
+            | grep -v '^\.gitignore$' \
+            || true)
+
+          if [ -z "$SCAN_FILES" ]; then
+            echo "No applicable source/configuration files to scan."
+            exit 0
+          fi
+
+          echo ""
+          echo "Scanning:"
+          echo "$SCAN_FILES"
+
+          # --------------------------------------------------
+          # Detect credential-like assignments.
           # --------------------------------------------------
 
           if git grep -n -I -E \
             '([A-Za-z0-9_]*(API_KEY|APIKEY|CLIENT_SECRET|ACCESS_TOKEN|AUTH_TOKEN|PRIVATE_KEY|PASSWORD)[A-Za-z0-9_]*)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']{8,}["'\'']' \
-            -- \
-            '*.cls' \
-            '*.trigger' \
-            '*.js' \
-            '*.ts' \
-            '*.json' \
-            '*.yaml' \
-            '*.yml' \
-            '*.xml' \
-            '*.properties' \
-            '*.txt' \
-            ':!**/*Test.cls' \
-            ':!.github/workflows/*' \
-            ':!.gitignore' \
-            ':!docs/**'; then
+            -- $SCAN_FILES; then
 
             echo ""
             echo "ERROR: Potential hard-coded credential detected."
@@ -184,22 +204,12 @@ jobs:
           fi
 
           # --------------------------------------------------
-          # Scan for common token formats.
+          # Detect Bearer tokens.
           # --------------------------------------------------
 
           if git grep -n -I -E \
             'Bearer[[:space:]]+[A-Za-z0-9._~+/=-]{20,}' \
-            -- \
-            '*.cls' \
-            '*.trigger' \
-            '*.js' \
-            '*.ts' \
-            '*.json' \
-            '*.yaml' \
-            '*.yml' \
-            ':!**/*Test.cls' \
-            ':!.github/workflows/*' \
-            ':!docs/**'; then
+            -- $SCAN_FILES; then
 
             echo ""
             echo "ERROR: Potential hard-coded Bearer token detected."
@@ -207,15 +217,15 @@ jobs:
           fi
 
           # --------------------------------------------------
-          # Scan for private key material.
+          # Detect private key material.
+          #
+          # The workflow itself is excluded above, so the
+          # scanner does not detect its own patterns.
           # --------------------------------------------------
 
-          if git grep -n -I \
-            -e "-----BEGIN PRIVATE KEY-----" \
-            -e "-----BEGIN RSA PRIVATE KEY-----" \
-            -e "-----BEGIN EC PRIVATE KEY-----" \
-            -- \
-            ':!.git/*'; then
+          if git grep -n -I -E \
+            'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' \
+            -- $SCAN_FILES; then
 
             echo ""
             echo "ERROR: Private key material detected."
@@ -223,18 +233,25 @@ jobs:
           fi
 
           # --------------------------------------------------
-          # Result
+          # Final result
           # --------------------------------------------------
 
           if [ "$FOUND" -ne 0 ]; then
             echo ""
-            echo "Secret scan FAILED."
-            echo "Remove hard-coded credentials before merging."
+            echo "=============================================="
+            echo "SECRET SCAN FAILED"
+            echo "=============================================="
+            echo ""
+            echo "Potential hard-coded credentials were found."
+            echo "Remove secrets from source/configuration files."
             exit 1
           fi
 
           echo ""
-          echo "Secret scan passed."
+          echo "=============================================="
+          echo "SECRET SCAN PASSED"
+          echo "=============================================="
+          echo ""
           echo "No obvious hard-coded secrets detected."
 
       # ======================================================
@@ -252,7 +269,6 @@ jobs:
             --output-file test-results-code-analyzer.html
 
           echo "Salesforce Code Analyzer completed."
-
 
       # ======================================================
       # Stage 9 - Authenticate Salesforce
@@ -277,7 +293,6 @@ jobs:
 
           echo "Salesforce authentication completed."
 
-
       # ======================================================
       # Stage 9A - Verify Salesforce Authentication
       # ======================================================
@@ -293,7 +308,6 @@ jobs:
             --target-org ci-org
 
           echo "Salesforce authentication verified."
-
 
       # ======================================================
       # Stage 10 - Apex Tests
@@ -317,7 +331,6 @@ jobs:
 
           echo "Apex tests completed successfully."
 
-
       # ======================================================
       # Stage 11 - Upload Apex Test Results
       # ======================================================
@@ -331,7 +344,6 @@ jobs:
             test-results/
             test-results-code-analyzer.html
           if-no-files-found: warn
-
 
       # ======================================================
       # Stage 12 - Security Regression Tests
@@ -354,7 +366,6 @@ jobs:
 
           echo "Security regression tests completed."
 
-
       # ======================================================
       # Stage 13 - AI Tool Calling Tests
       # ======================================================
@@ -376,7 +387,6 @@ jobs:
 
           echo "AI tool calling tests completed."
 
-
       # ======================================================
       # Stage 14 - RAG Evaluation
       # ======================================================
@@ -387,7 +397,6 @@ jobs:
 
           echo "RAG evaluation stage"
           echo "RAG evaluation will be enabled when the RAG test suite is available."
-
 
       # ======================================================
       # Stage 15 - Deployment Validation

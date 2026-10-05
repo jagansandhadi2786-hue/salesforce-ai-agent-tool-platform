@@ -8,5 +8,5 @@
   "name": "salesforce-ai-agent-tool-platform",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
-  "sourceApiVersion": "67.0"
+  "sourceApiVersion": "49.0"
 }
