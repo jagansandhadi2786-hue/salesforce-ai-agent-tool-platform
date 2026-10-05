@@ -1,38 +1,219 @@
+# ============================================================
+# Salesforce AI Agent CI
+#
+# Pipeline:
+# 1. Checkout
+# 2. Setup Node.js
+# 3. Install Salesforce CLI
+# 4. Verify Salesforce CLI
+# 5. Verify Salesforce project
+# 6. Git validation
+# 7. Secret scan
+# 8. Static analysis
+# 9. Authenticate Salesforce
+# 10. Apex tests
+# 11. Upload test results
+# 12. Security tests
+# 13. AI tests
+# 14. RAG evaluation
+# 15. Deployment validation
+# ============================================================
+
 name: Salesforce AI Agent CI
 
 on:
   pull_request:
     branches:
+      - develop
       - main
 
   push:
     branches:
+      - develop
       - main
 
 jobs:
-  validate:
+
+  quality:
+    name: Quality and Security
     runs-on: ubuntu-latest
 
     steps:
 
+      # ======================================================
+      # Stage 1 - Checkout
+      # ======================================================
+
       - name: Checkout
         uses: actions/checkout@v4
+
+
+      # ======================================================
+      # Stage 2 - Setup Node.js
+      # ======================================================
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+
+      # ======================================================
+      # Stage 3 - Install Salesforce CLI
+      # ======================================================
+
       - name: Install Salesforce CLI
         run: |
           npm install --global @salesforce/cli
+
+
+      # ======================================================
+      # Stage 4 - Verify Salesforce CLI
+      # ======================================================
 
       - name: Verify Salesforce CLI
         run: |
           sf --version
 
-      - name: Validate project
+
+      # ======================================================
+      # Stage 5 - Verify Salesforce Project
+      # ======================================================
+
+      - name: Verify project
+        run: |
+          sf project list
+
+
+      # ======================================================
+      # Stage 6 - Git validation
+      # ======================================================
+
+      - name: Check Git diff
+        run: |
+          git diff --check
+
+
+      # ======================================================
+      # Stage 7 - Secret scan
+      # ======================================================
+
+      - name: Secret scan
+        run: |
+          ! git grep -n -i \
+            -e "api_key" \
+            -e "apikey" \
+            -e "client_secret" \
+            -e "access_token" \
+            -e "password" \
+            -e "Bearer " \
+            -e "salesforce-token" \
+            -e "azure-api-key"
+
+
+      # ======================================================
+      # Stage 8 - Salesforce Code Analyzer
+      # ======================================================
+
+      - name: Salesforce Code Analyzer
+        run: |
+          sf scanner run \
+            --target force-app/main/default \
+            --format table
+
+      # NOTE:
+      # Verify the exact Code Analyzer command/options against
+      # the installed CLI/plugin version used in CI.
+
+
+      # ======================================================
+      # Stage 9 - Authenticate Salesforce
+      # ======================================================
+
+      - name: Authenticate Salesforce
+        run: |
+          echo "${{ secrets.SFDX_AUTH_URL }}" > sfdx-auth-url.txt
+
+          sf org login sfdx-url \
+            --sfdx-url-file sfdx-auth-url.txt \
+            --alias ci-org
+
+          rm -f sfdx-auth-url.txt
+
+
+      # ======================================================
+      # Stage 10 - Apex Tests
+      # ======================================================
+
+      - name: Run Apex tests
+        run: |
+          sf apex run test \
+            --target-org ci-org \
+            --test-level RunLocalTests \
+            --result-format junit \
+            --output-dir test-results \
+            --wait 30
+
+
+      # ======================================================
+      # Stage 11 - Upload Apex Test Results
+      # ======================================================
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apex-test-results
+          path: test-results/
+
+
+      # ======================================================
+      # Stage 12 - Security Regression Tests
+      # ======================================================
+
+      - name: Security regression tests
+        run: |
+          sf apex run test \
+            --target-org ci-org \
+            --tests AI_ToolSecurityTest \
+            --tests AI_AgentSecurityTest \
+            --tests AI_AgentNegativeTest \
+            --result-format human \
+            --wait 30
+
+
+      # ======================================================
+      # Stage 13 - AI Tool Calling Tests
+      # ======================================================
+
+      - name: AI tool calling tests
+        run: |
+          sf apex run test \
+            --target-org ci-org \
+            --tests AI_AgentAzureOpenAIServiceTest \
+            --tests AI_AgentAzureToolCallingServiceTest \
+            --tests AI_AgentAzureEndToEndTest \
+            --result-format human \
+            --wait 30
+
+
+      # ======================================================
+      # Stage 14 - RAG Evaluation
+      # ======================================================
+
+      - name: RAG evaluation
+        run: |
+          echo "RAG evaluation stage"
+          echo "RAG evaluation will be enabled when RAG test suite is available."
+
+
+      # ======================================================
+      # Stage 15 - Deployment Validation
+      # ======================================================
+
+      - name: Deployment validation
         run: |
           sf project deploy validate \
             --source-dir force-app/main/default \
-            --target-org ci-org
+            --target-org ci-org \
+            --wait 30

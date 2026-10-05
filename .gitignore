@@ -1,8 +1,7 @@
-# This file is used for Git repositories to specify intentionally untracked files that Git should ignore. 
-# If you are not using git, you can delete this file. For more information see: https://git-scm.com/docs/gitignore
-# For useful gitignore templates see: https://github.com/github/gitignore
+# ============================================================
+# Salesforce CLI / Salesforce DX
+# ============================================================
 
-# Salesforce cache
 .sf/
 .sfdx/
 .localdevserver/
@@ -14,35 +13,74 @@ deploy-options.json
 # LWC Jest coverage reports
 coverage/
 
+# ============================================================
+# Node / JavaScript
+# ============================================================
+
+node_modules/
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Dependency directories
-node_modules/
-
-# ApexPMD cache
-.pmdCache
-
-# Eslint cache
+# ESLint cache
 .eslintcache
 
-# MacOS system files
+# Apex PMD cache
+.pmdCache
+
+# ============================================================
+# Environment Variables / Secrets
+# ============================================================
+
+.env
+.env.*
+
+# Allow a safe template/example file
+!.env.example
+
+# ============================================================
+# Certificates / Keys
+# ============================================================
+
+*.key
+*.pem
+*.p12
+*.crt
+
+# Secret directories
+secrets/
+credentials/
+
+# ============================================================
+# Python
+# ============================================================
+
+**/__pycache__/
+**/.venv/
+**/venv/
+
+# ============================================================
+# OS files
+# ============================================================
+
+# macOS
 .DS_Store
 
-# Windows system files
+# Windows
 Thumbs.db
 ehthumbs.db
 [Dd]esktop.ini
 $RECYCLE.BIN/
 
-# Local environment variables
-.env
+# ============================================================
+# Do NOT commit production/secrets files
+# ============================================================
 
-# Python Salesforce Functions
-**/__pycache__/
-**/.venv/
-**/venv/
+.env.production
+production-password.txt
+azure-api-key.txt
+salesforce-token.txt
