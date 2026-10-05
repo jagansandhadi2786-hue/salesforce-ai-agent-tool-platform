@@ -139,7 +139,7 @@ jobs:
           echo "Git validation completed."
 
 
-      # ======================================================
+           # ======================================================
       # Stage 7 - Secret scan
       # ======================================================
 
@@ -148,25 +148,94 @@ jobs:
         run: |
           set -e
 
-          echo "Scanning repository for potential secrets..."
+          echo "Scanning repository for potential hard-coded secrets..."
 
-          if git grep -n -i \
-            -e "api_key" \
-            -e "apikey" \
-            -e "client_secret" \
-            -e "access_token" \
-            -e "password" \
-            -e "Bearer " \
-            -e "salesforce-token" \
-            -e "azure-api-key"; then
+          FOUND=0
+
+          # --------------------------------------------------
+          # Scan source/configuration files only.
+          #
+          # Documentation, tests, workflows and .gitignore
+          # are excluded because they intentionally contain
+          # security terminology and examples.
+          # --------------------------------------------------
+
+          if git grep -n -I -E \
+            '([A-Za-z0-9_]*(API_KEY|APIKEY|CLIENT_SECRET|ACCESS_TOKEN|AUTH_TOKEN|PRIVATE_KEY|PASSWORD)[A-Za-z0-9_]*)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']{8,}["'\'']' \
+            -- \
+            '*.cls' \
+            '*.trigger' \
+            '*.js' \
+            '*.ts' \
+            '*.json' \
+            '*.yaml' \
+            '*.yml' \
+            '*.xml' \
+            '*.properties' \
+            '*.txt' \
+            ':!**/*Test.cls' \
+            ':!.github/workflows/*' \
+            ':!.gitignore' \
+            ':!docs/**'; then
 
             echo ""
-            echo "ERROR: Potential secret detected in repository."
+            echo "ERROR: Potential hard-coded credential detected."
+            FOUND=1
+          fi
+
+          # --------------------------------------------------
+          # Scan for common token formats.
+          # --------------------------------------------------
+
+          if git grep -n -I -E \
+            'Bearer[[:space:]]+[A-Za-z0-9._~+/=-]{20,}' \
+            -- \
+            '*.cls' \
+            '*.trigger' \
+            '*.js' \
+            '*.ts' \
+            '*.json' \
+            '*.yaml' \
+            '*.yml' \
+            ':!**/*Test.cls' \
+            ':!.github/workflows/*' \
+            ':!docs/**'; then
+
+            echo ""
+            echo "ERROR: Potential hard-coded Bearer token detected."
+            FOUND=1
+          fi
+
+          # --------------------------------------------------
+          # Scan for private key material.
+          # --------------------------------------------------
+
+          if git grep -n -I \
+            -e "-----BEGIN PRIVATE KEY-----" \
+            -e "-----BEGIN RSA PRIVATE KEY-----" \
+            -e "-----BEGIN EC PRIVATE KEY-----" \
+            -- \
+            ':!.git/*'; then
+
+            echo ""
+            echo "ERROR: Private key material detected."
+            FOUND=1
+          fi
+
+          # --------------------------------------------------
+          # Result
+          # --------------------------------------------------
+
+          if [ "$FOUND" -ne 0 ]; then
+            echo ""
+            echo "Secret scan FAILED."
+            echo "Remove hard-coded credentials before merging."
             exit 1
           fi
 
-          echo "Secret scan completed successfully."
-
+          echo ""
+          echo "Secret scan passed."
+          echo "No obvious hard-coded secrets detected."
 
       # ======================================================
       # Stage 8 - Salesforce Code Analyzer
