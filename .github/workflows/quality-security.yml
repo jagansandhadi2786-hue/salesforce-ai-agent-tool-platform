@@ -1,0 +1,222 @@
+name: Quality and Security
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+
+  quality-security:
+
+    name: Quality and Security
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ---------------------------------------------------------
+      # 1. Checkout
+      # ---------------------------------------------------------
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      # ---------------------------------------------------------
+      # 2. Node.js
+      # ---------------------------------------------------------
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      # ---------------------------------------------------------
+      # 3. Salesforce CLI
+      # ---------------------------------------------------------
+
+      - name: Install Salesforce CLI
+        run: |
+          npm install --global @salesforce/cli
+          sf --version
+
+      # ---------------------------------------------------------
+      # 4. Install project dependencies
+      # ---------------------------------------------------------
+
+      - name: Install npm dependencies
+        if: hashFiles('package-lock.json') != ''
+        run: npm ci
+
+      # ---------------------------------------------------------
+      # 5. Prepare evidence directory
+      # ---------------------------------------------------------
+
+      - name: Create test-results directory
+        run: mkdir -p test-results
+
+      # ---------------------------------------------------------
+      # 6. Secret file scan
+      # ---------------------------------------------------------
+
+      - name: Check for sensitive files
+        shell: bash
+        run: |
+          set -e
+
+          echo "Checking for sensitive files..."
+
+          if find . \
+            -type f \
+            \( \
+              -name "*.pem" \
+              -o -name "*.key" \
+              -o -name "*.p12" \
+              -o -name "*.pfx" \
+              -o -name "*.jks" \
+            \) \
+            -not -path "./.git/*" \
+            | grep -q .; then
+
+            echo "ERROR: Potential secret/certificate files detected."
+            exit 1
+          fi
+
+          echo "No prohibited certificate/key files detected."
+
+      # ---------------------------------------------------------
+      # 7. Environment file scan
+      # ---------------------------------------------------------
+
+      - name: Check environment files
+        shell: bash
+        run: |
+          set -e
+
+          echo "Checking for environment files..."
+
+          FOUND=$(find . \
+            -type f \
+            -name ".env*" \
+            -not -name ".env.example" \
+            -not -path "./.git/*")
+
+          if [ -n "$FOUND" ]; then
+            echo "ERROR: Environment files detected:"
+            echo "$FOUND"
+            exit 1
+          fi
+
+          echo "No prohibited environment files detected."
+
+      # ---------------------------------------------------------
+      # 8. npm audit
+      # ---------------------------------------------------------
+
+      - name: Run npm audit
+        if: hashFiles('package-lock.json') != ''
+        run: |
+          npm audit --audit-level=high
+
+      # ---------------------------------------------------------
+      # 9. Salesforce Code Analyzer
+      # ---------------------------------------------------------
+
+      - name: Run Salesforce Code Analyzer
+        run: |
+          sf code-analyzer run \
+            --target force-app \
+            --output-file test-results/code-analyzer.html
+
+      # ---------------------------------------------------------
+      # 10. Salesforce Authentication
+      # ---------------------------------------------------------
+
+      - name: Authenticate to Salesforce
+        if: ${{ env.SF_AUTH_URL != '' }}
+        env:
+          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        run: |
+          set -e
+
+          echo "Authenticating to Salesforce..."
+
+          printf '%s' "$SF_AUTH_URL" > sfdx-auth-url.txt
+
+          sf org login sfdx-url \
+            --sfdx-url-file sfdx-auth-url.txt \
+            --alias ci-org \
+            --set-default
+
+          rm -f sfdx-auth-url.txt
+
+          echo "Salesforce authentication successful."
+
+      # ---------------------------------------------------------
+      # 11. Verify Salesforce Authentication
+      # ---------------------------------------------------------
+
+      - name: Verify Salesforce authentication
+        if: ${{ env.SF_AUTH_URL != '' }}
+        env:
+          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        run: |
+          set -e
+
+          sf org display \
+            --target-org ci-org
+
+      # ---------------------------------------------------------
+      # 12. Apex tests
+      # ---------------------------------------------------------
+
+      - name: Run Apex tests
+        if: ${{ env.SF_AUTH_URL != '' }}
+        env:
+          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        run: |
+          set -e
+
+          echo "Running Apex tests..."
+
+          sf apex run test \
+            --target-org ci-org \
+            --test-level RunLocalTests \
+            --wait 30 \
+            --result-format human \
+            --code-coverage
+
+          echo "Apex tests completed successfully."
+
+      # ---------------------------------------------------------
+      # 13. npm tests
+      # ---------------------------------------------------------
+
+      - name: Run JavaScript tests
+        if: hashFiles('package.json') != ''
+        run: |
+          npm test -- --runInBand
+
+      # ---------------------------------------------------------
+      # 14. Upload quality evidence
+      # ---------------------------------------------------------
+
+      - name: Upload quality evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-security-results
+          path: test-results/
+          if-no-files-found: warn

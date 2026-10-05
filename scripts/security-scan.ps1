@@ -254,8 +254,9 @@ if (-not $SkipSalesforce) {
 
         try {
 
-            sf scanner run `
+            sf code-analyzer run `
                 --target "force-app" `
+                --output-file "test-results\code-analyzer.html"
                 --format table
 
             if ($LASTEXITCODE -eq 0) {
