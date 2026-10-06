@@ -84,3 +84,4 @@ $RECYCLE.BIN/
 production-password.txt
 azure-api-key.txt
 salesforce-token.txt
+apex-test-results.json

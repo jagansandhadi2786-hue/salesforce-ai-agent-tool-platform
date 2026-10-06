@@ -1,11 +1,12 @@
-# List files or directories below to ignore them when running prettier
-# More information: https://prettier.io/docs/en/ignore.html
-#
+# Salesforce CLI generated files
+.sfdx/
+.sf/
 
-**/staticresources/**
-.localdevserver
-.sfdx
-.sf
-.vscode
+# Apex test output
+apex-test-results.json
 
+# Test coverage output
 coverage/
+
+# Dependencies
+node_modules/
