@@ -360,19 +360,10 @@ jobs:
       # Stage 12 - Security Regression Tests
       # ======================================================
 
-      - name: Security regression tests
-        shell: bash
+      - name: Run security regression tests
         run: |
-          set -e
-
           echo "Running security regression tests..."
-
-          sf apex run test \
-            --target-org ci-org \
-            --tests AI_SecurityRegressionTest
-            --result-format human \
-            --wait 30
-
+          sf apex run test --target-org "$SF_TARGET_ORG" --tests AI_SecurityRegressionTest --result-format human --wait 10
           echo "Security regression tests completed."
 
       # ======================================================
