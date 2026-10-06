@@ -3,28 +3,6 @@ public with sharing class AI_AgentOrchestrator {
    * ------------------------------------------------------------
    * Main Agent Entry Point
    * ------------------------------------------------------------
-   *
-   * Existing single-step process() behavior is preserved.
-   *
-   * If AI_AgentArgumentResult contains a resolutionTool,
-   * the request is routed through processWithResolution().
-   *
-   * IMPORTANT:
-   * resolutionTool must be checked BEFORE complete.
-   *
-   * Example:
-   *
-   * User:
-   * Find the open cases for Acme
-   *
-   * ArgumentResult:
-   * customer_name   = Acme
-   * account_id      = missing
-   * complete        = false
-   * resolutionTool  = search_customer
-   *
-   * The orchestrator must resolve the missing account_id
-   * before returning the missing-argument response.
    */
   public static AI_AgentResponse process(AI_AgentRequest request) {
     AI_AgentResponse response = new AI_AgentResponse();
@@ -139,34 +117,7 @@ public with sharing class AI_AgentOrchestrator {
        * MULTI-STEP RESOLUTION PATH
        * ------------------------------------------------
        *
-       * IMPORTANT:
-       *
-       * resolutionTool must be evaluated BEFORE
-       * argumentResult.complete.
-       *
-       * A resolution scenario is normally incomplete
-       * because the required final-tool argument is not
-       * known yet.
-       *
-       * Example:
-       *
-       * customer_name = Acme
-       * account_id    = missing
-       * complete      = false
-       * resolutionTool = search_customer
-       *
-       * Therefore, checking complete first would incorrectly
-       * return:
-       *
-       * "Missing argument: account_id"
-       *
-       * instead of executing:
-       *
-       * search_customer
-       *        ↓
-       * resolve Account Id
-       *        ↓
-       * get_open_cases
+       * resolutionTool MUST be checked before complete.
        */
       if (!String.isBlank(argumentResult.resolutionTool)) {
         System.debug(
@@ -186,20 +137,6 @@ public with sharing class AI_AgentOrchestrator {
        * ------------------------------------------------
        * Missing arguments
        * ------------------------------------------------
-       *
-       * This branch is now reached only when there is
-       * no resolution tool available.
-       *
-       * Example:
-       *
-       * "Find the open cases"
-       *
-       * account_id       = missing
-       * customer_name    = missing
-       * resolutionTool   = blank
-       *
-       * In this case the agent correctly reports the
-       * missing argument.
        */
       if (!argumentResult.complete) {
         response.success = false;
@@ -216,7 +153,7 @@ public with sharing class AI_AgentOrchestrator {
 
       /*
        * ------------------------------------------------
-       * EXISTING SINGLE-STEP BEHAVIOR
+       * Existing single-step behavior
        * ------------------------------------------------
        */
       return processSingleStep(request, intent, selection, argumentResult);
@@ -253,8 +190,6 @@ public with sharing class AI_AgentOrchestrator {
    * ============================================================
    * EXISTING SINGLE-STEP PROCESSING
    * ============================================================
-   *
-   * This contains the original tool execution behavior.
    */
   private static AI_AgentResponse processSingleStep(
     AI_AgentRequest request,
@@ -389,20 +324,6 @@ public with sharing class AI_AgentOrchestrator {
    * ============================================================
    * MULTI-STEP RESOLUTION PROCESSING
    * ============================================================
-   *
-   * Example:
-   *
-   * User:
-   * Find the open cases for Acme
-   *
-   * Step 1:
-   * search_customer(customer_name = Acme)
-   *
-   * Step 2:
-   * Resolve customer ID from search_customer result
-   *
-   * Step 3:
-   * Execute original tool using resolved customer ID
    */
   private static AI_AgentResponse processWithResolution(
     AI_AgentRequest request,
@@ -567,12 +488,18 @@ public with sharing class AI_AgentOrchestrator {
      * ------------------------------------------------
      * Build Final Agent Response
      * ------------------------------------------------
+     *
+     * IMPORTANT:
+     *
+     * Pass the resolved arguments into the final
+     * response builder.
      */
     return buildFinalAgentResponse(
       request,
       intent,
       selection,
       argumentResult,
+      nextArguments,
       finalResponse,
       context
     );
@@ -582,16 +509,6 @@ public with sharing class AI_AgentOrchestrator {
    * ============================================================
    * BUILD RESOLUTION ARGUMENTS
    * ============================================================
-   *
-   * First supported scenario:
-   *
-   * Find the open cases for Acme
-   *
-   * resolutionTool:
-   * search_customer
-   *
-   * arguments:
-   * customer_name = Acme
    */
   private static Map<String, Object> buildResolutionArguments(
     AI_AgentArgumentResult argumentResult
@@ -722,12 +639,30 @@ public with sharing class AI_AgentOrchestrator {
    * ============================================================
    * BUILD FINAL AGENT RESPONSE
    * ============================================================
+   *
+   * IMPORTANT FIX:
+   *
+   * The original argumentResult represents the state BEFORE
+   * resolution:
+   *
+   *     complete = false
+   *     missingArgument = account_id
+   *
+   * The final tool has already executed successfully.
+   *
+   * Therefore the formatter must receive a RESOLVED argument
+   * result, otherwise it can incorrectly generate:
+   *
+   * "Account ID must be resolved from customer name..."
+   *
+   * even though the account ID was successfully resolved.
    */
   private static AI_AgentResponse buildFinalAgentResponse(
     AI_AgentRequest request,
     AI_AgentIntent intent,
     AI_AgentToolSelection selection,
     AI_AgentArgumentResult argumentResult,
+    Map<String, Object> resolvedArguments,
     AI_ToolResponse finalResponse,
     AI_AgentContext context
   ) {
@@ -747,6 +682,11 @@ public with sharing class AI_AgentOrchestrator {
       return response;
     }
 
+    /*
+     * ------------------------------------------------
+     * Copy final tool result
+     * ------------------------------------------------
+     */
     response.success = finalResponse.success;
 
     response.toolData = finalResponse.data;
@@ -763,20 +703,83 @@ public with sharing class AI_AgentOrchestrator {
 
     /*
      * ------------------------------------------------
+     * Create resolved argument result
+     * ------------------------------------------------
+     *
+     * Do not send the original incomplete argumentResult
+     * to the formatter.
+     */
+    AI_AgentArgumentResult resolvedArgumentResult = new AI_AgentArgumentResult();
+
+    /*
+     * Preserve the arguments originally extracted from
+     * the user's message.
+     */
+    resolvedArgumentResult.arguments = new Map<String, Object>();
+
+    if (argumentResult != null && argumentResult.arguments != null) {
+      resolvedArgumentResult.arguments.putAll(argumentResult.arguments);
+    }
+
+    /*
+     * Add the arguments resolved by the resolution tool.
+     *
+     * Example:
+     *
+     * customer_name = Acme
+     * account_id    = 001gK00001ZlHC1QAN
+     */
+    if (resolvedArguments != null) {
+      resolvedArgumentResult.arguments.putAll(resolvedArguments);
+    }
+
+    /*
+     * The final tool has now received all required
+     * arguments successfully.
+     */
+    resolvedArgumentResult.complete = true;
+
+    resolvedArgumentResult.missingArgument = null;
+
+    resolvedArgumentResult.resolutionTool = null;
+
+    resolvedArgumentResult.message = null;
+
+    System.debug(
+      LoggingLevel.DEBUG,
+      'AI AGENT RESOLVED ARGUMENTS = ' +
+      JSON.serialize(resolvedArgumentResult.arguments)
+    );
+
+    /*
+     * ------------------------------------------------
      * Format final response
      * ------------------------------------------------
      *
-     * The formatter continues to receive the original
-     * argumentResult. The resolved arguments are already
-     * represented in the final tool response.
+     * The formatter now receives the RESOLVED argument
+     * state instead of the original incomplete state.
      */
     response.message = AI_AgentResponseFormatter.format(
       request,
       intent,
       selection,
-      argumentResult,
+      resolvedArgumentResult,
       finalResponse
     );
+
+    /*
+     * ------------------------------------------------
+     * Safety fallback
+     * ------------------------------------------------
+     *
+     * If a successful tool returned no data and the
+     * formatter did not provide a meaningful message,
+     * return a generic successful result rather than
+     * an old missing-argument message.
+     */
+    if (finalResponse.success == true && String.isBlank(response.message)) {
+      response.message = 'The request completed successfully, but no results were found.';
+    }
 
     System.debug(
       LoggingLevel.DEBUG,

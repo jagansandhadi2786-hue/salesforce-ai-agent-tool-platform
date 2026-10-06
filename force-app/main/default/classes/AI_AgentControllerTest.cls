@@ -1,144 +1,111 @@
-
 @IsTest
 private class AI_AgentControllerTest {
+  @TestSetup
+  static void setupTestData() {
+    List<AI_Tool__c> tools = new List<AI_Tool__c>();
 
-    @TestSetup
-    static void setupTestData() {
+    tools.add(
+      new AI_Tool__c(
+        Name = 'Search Customer',
+        Tool_API_Name__c = 'search_customer',
+        Description__c = 'Searches for a customer.',
+        Active__c = true,
+        Handler_Class__c = 'AI_ToolExecutor',
+        Requires_Approval__c = false,
+        Tool_Type__c = 'Salesforce',
+        Allowed_Arguments__c = 'customer_name'
+      )
+    );
 
-        List<AI_Tool__c> tools = new List<AI_Tool__c>();
+    tools.add(
+      new AI_Tool__c(
+        Name = 'Get Order Status',
+        Tool_API_Name__c = 'get_order_status',
+        Description__c = 'Gets the status of an order.',
+        Active__c = true,
+        Handler_Class__c = 'AI_ToolExecutor',
+        Requires_Approval__c = false,
+        Tool_Type__c = 'REST',
+        Allowed_Arguments__c = 'order_number'
+      )
+    );
 
-        tools.add(new AI_Tool__c(
-            Name = 'Search Customer',
-            Tool_API_Name__c = 'search_customer',
-            Description__c = 'Searches for a customer.',
-            Active__c = true,
-            Handler_Class__c = 'AI_ToolExecutor',
-            Requires_Approval__c = false,
-            Tool_Type__c = 'Salesforce',
-            Allowed_Arguments__c = 'customer_name'
-        ));
+    insert tools;
+  }
 
-        tools.add(new AI_Tool__c(
-            Name = 'Get Order Status',
-            Tool_API_Name__c = 'get_order_status',
-            Description__c = 'Gets the status of an order.',
-            Active__c = true,
-            Handler_Class__c = 'AI_ToolExecutor',
-            Requires_Approval__c = false,
-            Tool_Type__c = 'REST',
-            Allowed_Arguments__c = 'order_number'
-        ));
+  @IsTest
+  static void testProcessMessage() {
+    Test.startTest();
 
-        insert tools;
-    }
+    AI_AgentResponse response = AI_AgentController.processMessage(
+      'Find customer Acme'
+    );
 
+    Test.stopTest();
 
-    @IsTest
-    static void testProcessMessage() {
+    System.assertNotEquals(
+      null,
+      response,
+      'Controller should return an Agent response.'
+    );
 
-        Test.startTest();
+    System.assertEquals(
+      'SEARCH_CUSTOMER',
+      response.intent,
+      'Intent should be SEARCH_CUSTOMER.'
+    );
 
-        AI_AgentResponse response =
-            AI_AgentController.processMessage(
-                'Find customer Acme'
-            );
+    System.assertEquals(
+      'search_customer',
+      response.selectedTool,
+      'Tool should be search_customer.'
+    );
+  }
 
-        Test.stopTest();
+  @IsTest
+  static void testBlankMessage() {
+    Test.startTest();
 
-        System.assertNotEquals(
-            null,
-            response,
-            'Controller should return an Agent response.'
-        );
+    AI_AgentResponse response = AI_AgentController.processMessage('');
 
-        System.assertEquals(
-            'SEARCH_CUSTOMER',
-            response.intent,
-            'Intent should be SEARCH_CUSTOMER.'
-        );
+    Test.stopTest();
 
-        System.assertEquals(
-            'search_customer',
-            response.selectedTool,
-            'Tool should be search_customer.'
-        );
-    }
+    System.assertNotEquals(null, response);
 
+    System.assertEquals(false, response.success);
 
-    @IsTest
-    static void testBlankMessage() {
+    System.assertEquals('User message is required.', response.errorMessage);
+  }
 
-        Test.startTest();
+  @IsTest
+  static void testNullMessage() {
+    Test.startTest();
 
-        AI_AgentResponse response =
-            AI_AgentController.processMessage('');
+    AI_AgentResponse response = AI_AgentController.processMessage(
+      (AI_AgentRequest) null
+    );
 
-        Test.stopTest();
+    Test.stopTest();
 
-        System.assertNotEquals(
-            null,
-            response
-        );
+    System.assertNotEquals(null, response);
 
-        System.assertEquals(
-            false,
-            response.success
-        );
+    System.assertEquals(false, response.success);
+  }
 
-        System.assertEquals(
-            'User message is required.',
-            response.errorMessage
-        );
-    }
+  @IsTest
+  static void testOrderStatusRequest() {
+    Test.startTest();
 
+    AI_AgentResponse response = AI_AgentController.processMessage(
+      'What is the status of order ORD-1001?'
+    );
 
-    @IsTest
-    static void testNullMessage() {
+    Test.stopTest();
 
-        Test.startTest();
+    System.assertNotEquals(null, response);
 
-        AI_AgentResponse response =
-            AI_AgentController.processMessage(null);
+    System.assertEquals('GET_ORDER_STATUS', response.intent);
 
-        Test.stopTest();
-
-        System.assertNotEquals(
-            null,
-            response
-        );
-
-        System.assertEquals(
-            false,
-            response.success
-        );
-    }
-
-
-    @IsTest
-    static void testOrderStatusRequest() {
-
-        Test.startTest();
-
-        AI_AgentResponse response =
-            AI_AgentController.processMessage(
-                'What is the status of order ORD-1001?'
-            );
-
-        Test.stopTest();
-
-        System.assertNotEquals(
-            null,
-            response
-        );
-
-        System.assertEquals(
-            'GET_ORDER_STATUS',
-            response.intent
-        );
-
-        System.assertEquals(
-            'get_order_status',
-            response.selectedTool
-        );
-    }
+    System.assertEquals('get_order_status', response.selectedTool);
+  }
 }
