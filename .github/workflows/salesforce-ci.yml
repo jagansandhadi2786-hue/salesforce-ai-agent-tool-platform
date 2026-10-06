@@ -363,7 +363,7 @@ jobs:
       - name: Run security regression tests
         run: |
           echo "Running security regression tests..."
-          sf apex run test --target-org "$ai-agent-dev" --tests AI_SecurityRegressionTest --result-format human --wait 10
+          sf apex run test --target-org ci-org --tests AI_SecurityRegressionTest --result-format human --wait 10
           echo "Security regression tests completed."
 
       # ======================================================
