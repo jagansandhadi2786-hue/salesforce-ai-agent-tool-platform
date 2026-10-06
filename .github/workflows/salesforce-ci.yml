@@ -369,9 +369,7 @@ jobs:
 
           sf apex run test \
             --target-org ci-org \
-            --tests AI_ToolSecurityTest \
-            --tests AI_AgentSecurityTest \
-            --tests AI_AgentNegativeTest \
+            --tests AI_SecurityRegressionTest
             --result-format human \
             --wait 30
 
