@@ -43,15 +43,15 @@ jobs:
     # Salesforce authentication secret
     # --------------------------------------------------------
 
-    env:
-      SF_AUTH_URL: ${{ secrets.SFDX_AUTH_URL }}
-
+    # steps:
+    # - name: Checkout repository
+    # uses: actions/checkout@v5
     steps:
       # ======================================================
       # Stage 1 - Checkout
       # ======================================================
 
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v5
 
       # ======================================================
@@ -275,14 +275,25 @@ jobs:
       # ======================================================
 
       - name: Authenticate Salesforce
-        if: ${{ env.SF_AUTH_URL != '' }}
         shell: bash
+        env:
+          SFDX_AUTH_URL: ${{ secrets.SFDX_AUTH_URL }}
         run: |
           set -e
 
+          if [ -z "$SFDX_AUTH_URL" ]; then
+            echo "=============================================="
+            echo "ERROR: SFDX_AUTH_URL secret is not configured."
+            echo "=============================================="
+            echo ""
+            echo "Configure the SFDX_AUTH_URL secret in:"
+            echo "GitHub Repository -> Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+
           echo "Authenticating to Salesforce..."
 
-          printf '%s' "$SF_AUTH_URL" > sfdx-auth-url.txt
+          printf '%s' "$SFDX_AUTH_URL" > sfdx-auth-url.txt
 
           sf org login sfdx-url \
             --sfdx-url-file sfdx-auth-url.txt \
@@ -298,7 +309,7 @@ jobs:
       # ======================================================
 
       - name: Verify Salesforce authentication
-        if: ${{ env.SF_AUTH_URL != '' }}
+        shell: bash
         run: |
           set -e
 
@@ -314,7 +325,7 @@ jobs:
       # ======================================================
 
       - name: Run Apex tests
-        if: ${{ env.SF_AUTH_URL != '' }}
+        shell: bash
         run: |
           set -e
 
@@ -350,7 +361,7 @@ jobs:
       # ======================================================
 
       - name: Security regression tests
-        if: ${{ env.SF_AUTH_URL != '' }}
+        shell: bash
         run: |
           set -e
 
@@ -371,7 +382,7 @@ jobs:
       # ======================================================
 
       - name: AI tool calling tests
-        if: ${{ env.SF_AUTH_URL != '' }}
+        shell: bash
         run: |
           set -e
 
@@ -392,6 +403,7 @@ jobs:
       # ======================================================
 
       - name: RAG evaluation
+        shell: bash
         run: |
           set -e
 
@@ -403,7 +415,7 @@ jobs:
       # ======================================================
 
       - name: Deployment validation
-        if: ${{ env.SF_AUTH_URL != '' }}
+        shell: bash
         run: |
           set -e
 

@@ -1,4 +1,4 @@
-name: Quality and Security
+name: Salesforce AI Agent CI
 
 on:
   push:
@@ -13,62 +13,124 @@ on:
 
   workflow_dispatch:
 
+# Minimum permissions required by this workflow
 permissions:
   contents: read
 
 jobs:
-
   quality-security:
-
     name: Quality and Security
 
     runs-on: ubuntu-latest
 
     steps:
-
-      # ---------------------------------------------------------
+      # ============================================================
       # 1. Checkout
-      # ---------------------------------------------------------
+      # ============================================================
 
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      # ---------------------------------------------------------
-      # 2. Node.js
-      # ---------------------------------------------------------
+      # ============================================================
+      # 2. Setup Node.js
+      # ============================================================
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version: "24"
 
-      # ---------------------------------------------------------
-      # 3. Salesforce CLI
-      # ---------------------------------------------------------
+      # ============================================================
+      # 3. Install Salesforce CLI
+      # ============================================================
 
       - name: Install Salesforce CLI
         run: |
-          npm install --global @salesforce/cli
-          sf --version
+          set -e
 
-      # ---------------------------------------------------------
-      # 4. Install project dependencies
-      # ---------------------------------------------------------
+          npm install --global @salesforce/cli
+
+          echo "Salesforce CLI installation completed."
+
+      # ============================================================
+      # 4. Verify Salesforce CLI
+      # ============================================================
+
+      - name: Verify Salesforce CLI
+        run: |
+          set -e
+
+          sf --version
+          sf plugins
+
+      # ============================================================
+      # 5. Verify Salesforce Project
+      # ============================================================
+
+      - name: Verify Salesforce project
+        shell: bash
+        run: |
+          set -e
+
+          echo "Checking Salesforce DX project..."
+
+          if [ ! -f "sfdx-project.json" ]; then
+            echo "ERROR: sfdx-project.json was not found."
+            echo "Current directory:"
+            pwd
+            echo "Repository contents:"
+            ls -la
+            exit 1
+          fi
+
+          echo "sfdx-project.json found."
+
+          if [ ! -d "force-app" ]; then
+            echo "ERROR: force-app directory was not found."
+            exit 1
+          fi
+
+          echo "force-app directory found."
+          echo "Salesforce project structure looks valid."
+
+      # ============================================================
+      # 6. Install npm dependencies
+      # ============================================================
 
       - name: Install npm dependencies
         if: hashFiles('package-lock.json') != ''
-        run: npm ci
+        run: |
+          set -e
 
-      # ---------------------------------------------------------
-      # 5. Prepare evidence directory
-      # ---------------------------------------------------------
+          npm ci
 
-      - name: Create test-results directory
-        run: mkdir -p test-results
+          echo "npm dependencies installed."
 
-      # ---------------------------------------------------------
-      # 6. Secret file scan
-      # ---------------------------------------------------------
+      # ============================================================
+      # 7. Prepare test results directory
+      # ============================================================
+
+      - name: Prepare test results directory
+        run: |
+          mkdir -p test-results
+
+      # ============================================================
+      # 8. Git validation
+      # ============================================================
+
+      - name: Check Git diff
+        run: |
+          set -e
+
+          echo "Checking Git whitespace errors..."
+
+          git diff --check
+
+          echo "Git validation completed."
+
+      # ============================================================
+      # 9. Secret / certificate file scan
+      # ============================================================
 
       - name: Check for sensitive files
         shell: bash
@@ -87,6 +149,7 @@ jobs:
               -o -name "*.jks" \
             \) \
             -not -path "./.git/*" \
+            -not -path "./node_modules/*" \
             | grep -q .; then
 
             echo "ERROR: Potential secret/certificate files detected."
@@ -95,9 +158,9 @@ jobs:
 
           echo "No prohibited certificate/key files detected."
 
-      # ---------------------------------------------------------
-      # 7. Environment file scan
-      # ---------------------------------------------------------
+      # ============================================================
+      # 10. Environment file scan
+      # ============================================================
 
       - name: Check environment files
         shell: bash
@@ -110,7 +173,8 @@ jobs:
             -type f \
             -name ".env*" \
             -not -name ".env.example" \
-            -not -path "./.git/*")
+            -not -path "./.git/*" \
+            -not -path "./node_modules/*")
 
           if [ -n "$FOUND" ]; then
             echo "ERROR: Environment files detected:"
@@ -120,39 +184,195 @@ jobs:
 
           echo "No prohibited environment files detected."
 
-      # ---------------------------------------------------------
-      # 8. npm audit
-      # ---------------------------------------------------------
+      # ============================================================
+      # 11. npm audit
+      # ============================================================
 
       - name: Run npm audit
         if: hashFiles('package-lock.json') != ''
         run: |
+          set -e
+
           npm audit --audit-level=high
 
-      # ---------------------------------------------------------
-      # 9. Salesforce Code Analyzer
-      # ---------------------------------------------------------
+      # ============================================================
+      # 12. Secret scan of source files
+      # ============================================================
 
-      - name: Run Salesforce Code Analyzer
+      - name: Secret scan
+        shell: bash
         run: |
+          set -e
+
+          echo "Scanning changed files for potential hard-coded secrets..."
+
+          FOUND=0
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+            CHANGED_FILES=$(git diff \
+              --name-only \
+              "$BASE_SHA" \
+              "$HEAD_SHA")
+
+          else
+
+            CHANGED_FILES=$(git diff-tree \
+              --no-commit-id \
+              --name-only \
+              -r \
+              "$GITHUB_SHA")
+
+          fi
+
+          echo "Files being scanned:"
+          echo "$CHANGED_FILES"
+
+          SCAN_FILES=$(echo "$CHANGED_FILES" | \
+            grep -E \
+            '\.(cls|trigger|js|ts|json|yaml|yml|xml|properties|txt)$' \
+            | grep -v '^\.github/workflows/' \
+            | grep -v '^docs/' \
+            | grep -v 'Test\.cls$' \
+            | grep -v '^scripts/' \
+            | grep -v '^\.gitignore$' \
+            || true)
+
+          if [ -z "$SCAN_FILES" ]; then
+            echo "No applicable source/configuration files to scan."
+            exit 0
+          fi
+
+          echo ""
+          echo "Scanning:"
+          echo "$SCAN_FILES"
+
+          # --------------------------------------------------------
+          # Credential-like assignments
+          # --------------------------------------------------------
+
+          if git grep -n -I -E \
+            '([A-Za-z0-9_]*(API_KEY|APIKEY|CLIENT_SECRET|ACCESS_TOKEN|AUTH_TOKEN|PRIVATE_KEY|PASSWORD)[A-Za-z0-9_]*)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']{8,}["'\'']' \
+            -- $SCAN_FILES; then
+
+            echo ""
+            echo "ERROR: Potential hard-coded credential detected."
+            FOUND=1
+
+          fi
+
+          # --------------------------------------------------------
+          # Bearer tokens
+          # --------------------------------------------------------
+
+          if git grep -n -I -E \
+            'Bearer[[:space:]]+[A-Za-z0-9._~+/=-]{20,}' \
+            -- $SCAN_FILES; then
+
+            echo ""
+            echo "ERROR: Potential hard-coded Bearer token detected."
+            FOUND=1
+
+          fi
+
+          # --------------------------------------------------------
+          # Private key material
+          # --------------------------------------------------------
+
+          if git grep -n -I -E \
+            'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' \
+            -- $SCAN_FILES; then
+
+            echo ""
+            echo "ERROR: Private key material detected."
+            FOUND=1
+
+          fi
+
+          # --------------------------------------------------------
+          # Final result
+          # --------------------------------------------------------
+
+          if [ "$FOUND" -ne 0 ]; then
+
+            echo ""
+            echo "=============================================="
+            echo "SECRET SCAN FAILED"
+            echo "=============================================="
+
+            exit 1
+
+          fi
+
+          echo ""
+          echo "=============================================="
+          echo "SECRET SCAN PASSED"
+          echo "=============================================="
+
+      # ============================================================
+      # 13. Salesforce Code Analyzer
+      # ============================================================
+
+      - name: Salesforce Code Analyzer
+        run: |
+          set -e
+
+          echo "Running Salesforce Code Analyzer..."
+
           sf code-analyzer run \
             --target force-app \
             --output-file test-results/code-analyzer.html
 
-      # ---------------------------------------------------------
-      # 10. Salesforce Authentication
-      # ---------------------------------------------------------
+          echo "Salesforce Code Analyzer completed."
 
-      - name: Authenticate to Salesforce
-        if: ${{ env.SF_AUTH_URL != '' }}
+      # ============================================================
+      # 14. Check Salesforce authentication secret
+      #
+      # IMPORTANT:
+      # Do NOT use:
+      #
+      # if: env.SFDX_AUTH_URL != ''
+      #
+      # Instead use:
+      #
+      # if: ${{ secrets.SFDX_AUTH_URL != '' }}
+      # ============================================================
+
+      - name: Check Salesforce authentication secret
+        id: check-auth
+        shell: bash
         env:
-          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+          SFDX_AUTH_URL: ${{ secrets.SFDX_AUTH_URL }}
+        run: |
+          set -e
+
+          if [ -z "$SFDX_AUTH_URL" ]; then
+            echo "Salesforce authentication secret is NOT configured."
+            echo "authenticated=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Salesforce authentication secret is configured."
+          echo "authenticated=true" >> "$GITHUB_OUTPUT"
+
+      # ============================================================
+      # 15. Authenticate Salesforce
+      # ============================================================
+
+      - name: Authenticate Salesforce
+        if: steps.check-auth.outputs.authenticated == 'true'
+        shell: bash
+        env:
+          SFDX_AUTH_URL: ${{ secrets.SFDX_AUTH_URL }}
         run: |
           set -e
 
           echo "Authenticating to Salesforce..."
 
-          printf '%s' "$SF_AUTH_URL" > sfdx-auth-url.txt
+          printf '%s' "$SFDX_AUTH_URL" > sfdx-auth-url.txt
 
           sf org login sfdx-url \
             --sfdx-url-file sfdx-auth-url.txt \
@@ -161,61 +381,144 @@ jobs:
 
           rm -f sfdx-auth-url.txt
 
-          echo "Salesforce authentication successful."
+          echo "Salesforce authentication completed."
 
-      # ---------------------------------------------------------
-      # 11. Verify Salesforce Authentication
-      # ---------------------------------------------------------
+      # ============================================================
+      # 16. Verify Salesforce authentication
+      # ============================================================
 
       - name: Verify Salesforce authentication
-        if: ${{ env.SF_AUTH_URL != '' }}
-        env:
-          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        if: steps.check-auth.outputs.authenticated == 'true'
         run: |
           set -e
+
+          echo "Verifying Salesforce authentication..."
 
           sf org display \
             --target-org ci-org
 
-      # ---------------------------------------------------------
-      # 12. Apex tests
-      # ---------------------------------------------------------
+          echo "Salesforce authentication verified."
+
+      # ============================================================
+      # 17. Run Apex tests
+      # ============================================================
 
       - name: Run Apex tests
-        if: ${{ env.SF_AUTH_URL != '' }}
-        env:
-          SF_AUTH_URL: ${{ secrets.SF_AUTH_URL }}
+        if: steps.check-auth.outputs.authenticated == 'true'
+        shell: bash
         run: |
           set -e
 
-          echo "Running Apex tests..."
+          echo "Running Apex test suite..."
 
           sf apex run test \
             --target-org ci-org \
             --test-level RunLocalTests \
+            --result-format junit \
+            --output-dir test-results \
             --wait 30 \
-            --result-format human \
             --code-coverage
 
           echo "Apex tests completed successfully."
 
-      # ---------------------------------------------------------
-      # 13. npm tests
-      # ---------------------------------------------------------
+      # ============================================================
+      # 18. Security regression tests
+      # ============================================================
+
+      - name: Security regression tests
+        if: steps.check-auth.outputs.authenticated == 'true'
+        shell: bash
+        run: |
+          set -e
+
+          echo "Running security regression tests..."
+
+          sf apex run test \
+            --target-org ci-org \
+            --tests AI_ToolSecurityTest \
+            --tests AI_AgentSecurityTest \
+            --tests AI_AgentNegativeTest \
+            --result-format human \
+            --wait 30
+
+          echo "Security regression tests completed."
+
+      # ============================================================
+      # 19. AI tool calling tests
+      # ============================================================
+
+      - name: AI tool calling tests
+        if: steps.check-auth.outputs.authenticated == 'true'
+        shell: bash
+        run: |
+          set -e
+
+          echo "Running AI tool calling tests..."
+
+          sf apex run test \
+            --target-org ci-org \
+            --tests AI_AgentAzureOpenAIServiceTest \
+            --tests AI_AgentAzureToolCallingServiceTest \
+            --tests AI_AgentAzureEndToEndTest \
+            --result-format human \
+            --wait 30
+
+          echo "AI tool calling tests completed."
+
+      # ============================================================
+      # 20. RAG evaluation
+      # ============================================================
+
+      - name: RAG evaluation
+        if: steps.check-auth.outputs.authenticated == 'true'
+        shell: bash
+        run: |
+          set -e
+
+          echo "RAG evaluation stage."
+
+          echo "RAG evaluation will be enabled when the RAG test suite is available."
+
+      # ============================================================
+      # 21. Deployment validation
+      # ============================================================
+
+      - name: Deployment validation
+        if: steps.check-auth.outputs.authenticated == 'true'
+        shell: bash
+        run: |
+          set -e
+
+          echo "Validating Salesforce deployment..."
+
+          sf project deploy validate \
+            --source-dir force-app/main/default \
+            --target-org ci-org \
+            --wait 30
+
+          echo "Salesforce deployment validation completed."
+
+      # ============================================================
+      # 22. JavaScript / LWC tests
+      # ============================================================
 
       - name: Run JavaScript tests
         if: hashFiles('package.json') != ''
         run: |
+          set -e
+
           npm test -- --runInBand
 
-      # ---------------------------------------------------------
-      # 14. Upload quality evidence
-      # ---------------------------------------------------------
+      # ============================================================
+      # 23. Upload quality evidence
+      # ============================================================
 
       - name: Upload quality evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: quality-security-results
-          path: test-results/
+          path: |
+            test-results/
+            test-results-code-analyzer.html
           if-no-files-found: warn

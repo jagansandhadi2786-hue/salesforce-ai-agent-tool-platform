@@ -1,55 +1,90 @@
-const { defineConfig } = require('eslint/config');
-const eslintJs = require('@eslint/js');
-const jestPlugin = require('eslint-plugin-jest');
-const auraConfig = require('@salesforce/eslint-plugin-aura');
-const lwcConfig = require('@salesforce/eslint-config-lwc/recommended');
-const globals = require('globals');
+const { defineConfig } = require("eslint/config");
+const eslintJs = require("@eslint/js");
+const auraPlugin = require("@salesforce/eslint-plugin-aura");
+const lightningPlugin = require("@salesforce/eslint-plugin-lightning");
+const lwcPlugin = require("@lwc/eslint-plugin-lwc");
+const jestPlugin = require("eslint-plugin-jest");
+const globals = require("globals");
 
 module.exports = defineConfig([
-    // Aura configuration
-    {
-        files: ['**/aura/**/*.js'],
-        extends: [
-            ...auraConfig.configs.recommended,
-            ...auraConfig.configs.locker
-        ]
-    },
+  // ------------------------------------------------------------
+  // Base JavaScript rules
+  // ------------------------------------------------------------
+  {
+    files: ["**/*.js"],
+    ...eslintJs.configs.recommended
+  },
 
-    // LWC configuration
-    {
-        files: ['**/lwc/**/*.js'],
-        extends: [lwcConfig]
+  // ------------------------------------------------------------
+  // Aura JavaScript
+  // ------------------------------------------------------------
+  {
+    files: ["**/aura/**/*.js"],
+    plugins: {
+      "@salesforce/aura": auraPlugin
     },
-
-    // LWC configuration with override for LWC test files
-    {
-        files: ['**/lwc/**/*.test.js'],
-        extends: [lwcConfig],
-        rules: {
-            '@lwc/lwc/no-unexpected-wire-adapter-usages': 'off'
-        },
-        languageOptions: {
-            globals: {
-                ...globals.node
-            }
-        }
-    },
-
-    // Jest mocks configuration
-    {
-        files: ['**/jest-mocks/**/*.js'],
-        languageOptions: {
-            sourceType: 'module',
-            ecmaVersion: 'latest',
-            globals: {
-                ...globals.node,
-                ...globals.es2021,
-                ...jestPlugin.environments.globals.globals
-            }
-        },
-        plugins: {
-            eslintJs
-        },
-        extends: ['eslintJs/recommended']
+    rules: {
+      ...auraPlugin.configs?.recommended?.rules
     }
+  },
+
+  // ------------------------------------------------------------
+  // Lightning Web Components
+  // ------------------------------------------------------------
+  {
+    files: ["**/lwc/**/*.js"],
+    plugins: {
+      "@lwc/lwc": lwcPlugin,
+      "@salesforce/lightning": lightningPlugin
+    },
+    languageOptions: {
+      globals: {
+        ...globals.browser
+      }
+    },
+    rules: {
+      ...lwcPlugin.configs?.recommended?.rules,
+      ...lightningPlugin.configs?.recommended?.rules
+    }
+  },
+
+  // ------------------------------------------------------------
+  // LWC Jest test files
+  // ------------------------------------------------------------
+  {
+    files: ["**/lwc/**/*.test.js"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...jestPlugin.environments.globals.globals
+      }
+    },
+    rules: {
+      "@lwc/lwc/no-unexpected-wire-adapter-usages": "off"
+    }
+  },
+
+  // ------------------------------------------------------------
+  // Jest mocks
+  // ------------------------------------------------------------
+  {
+    files: ["**/jest-mocks/**/*.js"],
+    plugins: {
+      jest: jestPlugin
+    },
+    languageOptions: {
+      sourceType: "module",
+      ecmaVersion: "latest",
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.es2021,
+        ...jestPlugin.environments.globals.globals
+      }
+    },
+    rules: {
+      ...eslintJs.configs.recommended.rules
+    }
+  }
 ]);
